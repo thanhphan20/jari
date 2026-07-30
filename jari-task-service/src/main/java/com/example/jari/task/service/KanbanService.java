@@ -1,5 +1,6 @@
 package com.example.jari.task.service;
 
+import com.example.jari.common.exception.ResourceNotFoundException;
 import com.example.jari.task.dto.KanbanBoardDto;
 import com.example.jari.task.dto.KanbanColumnDto;
 import com.example.jari.task.dto.MoveTaskDto;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -39,9 +41,9 @@ public class KanbanService {
         
         for (String status : STANDARD_COLUMNS) {
             List<TaskDto> columnTasks = tasksByStatus.getOrDefault(status, new ArrayList<>());
-            // Sort by order if available, else by ID or created date
-            // For now, let's just leave them as is or sort by ID
-            
+            columnTasks.sort(Comparator.comparing(TaskDto::getOrder, Comparator.nullsLast(Integer::compareTo))
+                    .thenComparing(TaskDto::getId));
+
             columns.add(KanbanColumnDto.builder()
                     .id(status)
                     .title(formatTitle(status))
@@ -57,15 +59,32 @@ public class KanbanService {
     @Transactional
     public void moveTask(MoveTaskDto moveTaskDto) {
         Task task = taskRepository.findById(moveTaskDto.getTaskId())
-                .orElseThrow(() -> new RuntimeException("Task not found"));
-        
-        task.setStatus(moveTaskDto.getTargetStatus());
-        // Handle logic for reordering if targetIndex is present
-        if (moveTaskDto.getTargetIndex() != null) {
-            task.setOrder(moveTaskDto.getTargetIndex());
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + moveTaskDto.getTaskId()));
+
+        String targetStatus = moveTaskDto.getTargetStatus();
+        if (!STANDARD_COLUMNS.contains(targetStatus)) {
+            throw new IllegalArgumentException("Unsupported target status: " + targetStatus);
         }
-        
-        taskRepository.save(task);
+        task.setStatus(targetStatus);
+
+        // Reindex the whole target column so the moved task's order value can never
+        // collide with a sibling's - assigning targetIndex directly (the old
+        // behavior) let two tasks end up sharing the same order.
+        List<Task> columnTasks = taskRepository.findByProjectId(task.getProjectId()).stream()
+                .filter(t -> targetStatus.equals(t.getStatus()) && !t.getId().equals(task.getId()))
+                .sorted(Comparator.comparing(Task::getOrder, Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(Task::getId))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        int insertAt = moveTaskDto.getTargetIndex() != null
+                ? Math.max(0, Math.min(moveTaskDto.getTargetIndex(), columnTasks.size()))
+                : columnTasks.size();
+        columnTasks.add(insertAt, task);
+
+        for (int i = 0; i < columnTasks.size(); i++) {
+            columnTasks.get(i).setOrder(i);
+        }
+        taskRepository.saveAll(columnTasks);
     }
 
     private String formatTitle(String status) {

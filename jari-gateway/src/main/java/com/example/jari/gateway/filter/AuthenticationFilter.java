@@ -1,6 +1,7 @@
 package com.example.jari.gateway.filter;
 
 import com.example.jari.common.utils.JwtUtils;
+import io.jsonwebtoken.JwtException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
@@ -32,13 +33,15 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                     return unauthorized(exchange);
                 }
 
-                String authHeader = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION).get(0);
+                String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
                 if (authHeader != null && authHeader.startsWith("Bearer ")) {
                     authHeader = authHeader.substring(7);
                 }
                 try {
-                    jwtUtils.validateToken(authHeader, jwtUtils.extractUsername(authHeader));
-                } catch (Exception e) {
+                    if (!jwtUtils.validateToken(authHeader, jwtUtils.extractUsername(authHeader))) {
+                        return unauthorized(exchange);
+                    }
+                } catch (JwtException | IllegalArgumentException e) {
                     return unauthorized(exchange);
                 }
             }

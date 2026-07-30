@@ -21,6 +21,29 @@ services:
       retries: 10
       start_period: 10s
 
+  db-init:
+    image: 'postgres:18'
+    container_name: jari-db-init
+    entrypoint: ['sh', '-c']
+    command:
+      - |
+        for i in $$(seq 1 10); do
+          psql -h postgres -U postgres -f /init-db.sql && exit 0
+          echo "db-init: postgres not ready yet (attempt $$i/10), retrying in 3s..."
+          sleep 3
+        done
+        exit 1
+    environment:
+      - PGPASSWORD=postgres
+    volumes:
+      - ./postgres/init-db.sql:/init-db.sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - jari-network
+    restart: 'no'
+
   rabbitmq:
     image: 'rabbitmq:3-management'
     container_name: jari-rabbitmq
@@ -97,6 +120,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       eureka-discovery:
@@ -123,6 +148,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
       eureka-discovery:
@@ -148,6 +175,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       eureka-discovery:
         condition: service_healthy
     networks:
@@ -171,6 +200,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       eureka-discovery:
         condition: service_healthy
     networks:
@@ -194,6 +225,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       eureka-discovery:
         condition: service_healthy
     networks:
