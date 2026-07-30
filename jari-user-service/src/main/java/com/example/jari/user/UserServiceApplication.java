@@ -7,7 +7,7 @@ import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
 @EnableDiscoveryClient
-@ComponentScan(basePackages = {"com.example.jari.user", "com.example.jari.common"})
+@ComponentScan(basePackages = {"com.example.jari.user", "com.example.jari.common", "com.example.jari.security"})
 public class UserServiceApplication {
 
     public static void main(String[] args) {

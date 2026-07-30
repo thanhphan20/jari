@@ -95,35 +95,8 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-discovery:8761/eureka/
+      - JARI_SECURITY_JWT_SECRET=5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
     depends_on:
-      eureka-discovery:
-        condition: service_healthy
-    networks:
-      - jari-network
-    restart: always
-
-  auth-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: auth-service
-    container_name: jari-auth-service
-    ports:
-      - '8081:8081'
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/jari_auth
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=postgres
-      - SPRING_RABBITMQ_HOST=rabbitmq
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-discovery:8761/eureka/
-    depends_on:
-      postgres:
-        condition: service_healthy
-      db-init:
-        condition: service_completed_successfully
-      rabbitmq:
-        condition: service_healthy
       eureka-discovery:
         condition: service_healthy
     networks:
@@ -143,15 +116,13 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/jari_user
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
-      - SPRING_RABBITMQ_HOST=rabbitmq
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-discovery:8761/eureka/
+      - JARI_SECURITY_JWT_SECRET=5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
     depends_on:
       postgres:
         condition: service_healthy
       db-init:
         condition: service_completed_successfully
-      rabbitmq:
-        condition: service_healthy
       eureka-discovery:
         condition: service_healthy
     networks:

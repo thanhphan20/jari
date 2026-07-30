@@ -18,14 +18,7 @@ COPY . .
 RUN mvn clean package -pl jari-gateway -am -DskipTests
 ENTRYPOINT ["java", "-jar", "jari-gateway/target/jari-gateway-0.0.1-SNAPSHOT.jar"]
 
-# Stage 4: Build auth-service
-FROM maven:3.9-eclipse-temurin-21 AS auth-service
-WORKDIR /app
-COPY . .
-RUN mvn clean package -pl jari-auth-service -am -DskipTests
-ENTRYPOINT ["java", "-jar", "jari-auth-service/target/jari-auth-service-0.0.1-SNAPSHOT.jar"]
-
-# Stage 5: Build user-service
+# Stage 4: Build user-service
 FROM maven:3.9-eclipse-temurin-21 AS user-service
 WORKDIR /app
 COPY . .

@@ -29,10 +29,10 @@
 
     <modules>
         <module>jari-common</module>
+        <module>jari-security</module>
         <module>jari-discovery</module>
         <module>jari-gateway</module>
         <module>jari-user-service</module>
-        <module>jari-auth-service</module>
         <module>jari-project-service</module>
         <module>jari-task-service</module>
         <module>jari-notification-service</module>
