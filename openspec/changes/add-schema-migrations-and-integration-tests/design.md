@@ -58,7 +58,7 @@ Spring Boot 3.1+ `@ServiceConnection` on a `@Container` field wires the containe
 
 *Why:* the alternative is `@DynamicPropertySource` blocks repeated in every test class — the same URL/username/password plumbing four times over, drifting independently.
 
-### Container reuse per JVM, not per test class
+### Container reuse per test class, not per test method
 
 Containers are declared `static` so one Postgres serves every test in a class, and each test isolates itself by transaction rollback or explicit cleanup rather than by a fresh container.
 
@@ -91,7 +91,7 @@ Per-service integration tests provision infrastructure, not sibling services. Th
 **Decision:** two tiers.
 
 1. **Per-service integration tests** (`*IT`) with real infrastructure and *stubbed* siblings. When task-service calls project-service over Feign in Phase 3, the sibling is stubbed at the HTTP boundary. This is where circuit-breaker behavior gets tested, by making the stub fail or hang.
-2. **One end-to-end test** (`*E2EIT`) that brings up the whole stack via Testcontainers' compose support and drives it through the gateway. It asserts the definition of done and nothing more — it is the single most expensive test in the suite and must not become the place where edge cases accumulate.
+2. **One end-to-end test, `ProjectCollaborationE2EIT`,** that brings up the whole stack via Testcontainers' compose support and drives it through the gateway. It asserts the definition of done and nothing more — it is the single most expensive test in the suite and must not become the place where edge cases accumulate. Each clause maps to one assertion in this one class: user A creates a project and invites B; B is assigned a task; B can see it; a non-member gets 403; a notification exists for B.
 
 *Why two tiers rather than only end-to-end:* an end-to-end test cannot easily simulate "project-service is timing out," which is the specific behavior Phase 3 exists to teach. And a single end-to-end test that covers everything fails uninformatively.
 
@@ -125,4 +125,7 @@ Per-service integration tests provision infrastructure, not sibling services. Th
 - **Does `DataSeeder` survive into the test harness, or do tests build their own fixtures?** Two mechanisms creating users will diverge. Recommendation: tests own their fixtures; `DataSeeder` remains only as a development convenience behind a profile, if it survives the previous change at all.
 - **Baseline as one file per service or split by table?** One `V1__baseline.sql` is simpler to review; splitting is tidier as the count grows. Recommendation: one file, since each service currently has one or two tables.
 - **Should the migration directory be under version control per service or centralized?** Per service, to match schema ownership — worth stating explicitly because a central directory is the natural instinct and it quietly breaks the ownership boundary this change is establishing.
-- **Test-scope RabbitMQ for services that publish but do not consume.** Task-service will publish in Phase 6; is a real broker needed to assert publication, or is the publication assertion better made at the `RabbitTemplate` boundary? Real broker is more faithful; the template boundary is faster.
+
+## Decided (was an open question)
+
+**Test-scope RabbitMQ for services that publish but do not consume.** Decision: a real RabbitMQ Testcontainer for publish/consume integration behavior — the whole point of the Phase 6 event flow is ordering and delivery semantics, which a `RabbitTemplate`-boundary mock cannot exercise. `RabbitTemplate`-boundary assertions (verifying the template was called with the right message) are supplemental, fast unit-level coverage on top of that, not a substitute for it. Task 7.5 (tasks.md) is updated to verify and record this decision rather than leaving it open.

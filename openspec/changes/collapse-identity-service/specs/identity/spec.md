@@ -38,7 +38,7 @@ The identity service SHALL store passwords only as a salted one-way hash, and SH
 
 ### Requirement: Issued tokens carry a stable user identifier
 
-Tokens SHALL include a `userId` claim holding the identity service's primary key for the authenticated user, so that any service receiving the token can reference that user without a lookup by name.
+Tokens SHALL include a `userId` claim holding the identity service's primary key for the authenticated user, so that the gateway can propagate a stable identity downstream via headers without a lookup by name. Downstream services never receive or parse the token itself - they read the gateway-injected identity headers (see the `gateway-identity-propagation` capability).
 
 #### Scenario: Token contains the user's identifier
 

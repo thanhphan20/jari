@@ -46,7 +46,7 @@
 
 ## 6. Cross-service testing decision
 
-- [ ] 6.1 Document the two-tier approach: per-service `*IT` with stubbed siblings, plus one `*E2EIT` over the whole stack.
+- [ ] 6.1 Document the two-tier approach: per-service `*IT` with stubbed siblings, plus one named end-to-end test, `ProjectCollaborationE2EIT`, over the whole stack.
 - [ ] 6.2 Record which tier owns which concern — circuit-breaker and failure-injection behavior in tier one, the definition of done in tier two.
 - [ ] 6.3 Record explicitly that the end-to-end test is deferred to Phase 6, and why building it now would mean asserting behavior that does not exist.
 - [ ] 6.4 Map each clause of the project's definition of done to the named test that will assert it.
@@ -57,5 +57,5 @@
 - [ ] 7.2 Confirm the failure message is clear when the container runtime is unavailable, and does not present as an unrelated connection error.
 - [ ] 7.3 Document the Docker prerequisite, the `*Test` versus `*IT` convention, and how to run each.
 - [ ] 7.4 Document the forward-only migration rule: never edit an applied migration, always add a new one.
-- [ ] 7.5 Settle the design open questions — `DataSeeder` versus test-owned fixtures, single versus split baseline files, and whether publication assertions need a real broker — and record each decision.
+- [ ] 7.5 Settle the remaining design open questions — `DataSeeder` versus test-owned fixtures, single versus split baseline files — and record each decision. RabbitMQ testing is already decided in design.md: a real broker Testcontainer for publish/consume behavior, `RabbitTemplate`-boundary assertions as supplemental unit coverage only, not a substitute. Verify that decision holds once Phase 6's event flow exists.
 - [ ] 7.6 Record any defects the new tests revealed as separate changes rather than fixing them here.

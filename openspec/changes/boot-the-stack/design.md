@@ -1,16 +1,17 @@
 ## Context
 
-Jari is a six-service Spring Boot stack (Eureka, gateway, auth, user, project, task, notification) with Postgres and RabbitMQ, orchestrated by `docker-compose.yml` against a single multi-stage `Dockerfile`. The stated project goal is learning distributed-systems patterns, so this stack has to be startable and observable on demand, repeatedly.
+Jari is a seven-service Spring Boot stack (Eureka, gateway, auth, user, project, task, notification) with Postgres and RabbitMQ, orchestrated by `docker-compose.yml` against a single multi-stage `Dockerfile`. The stated project goal is learning distributed-systems patterns, so this stack has to be startable and observable on demand, repeatedly.
 
-It currently does not start end-to-end. Investigation found five defects, all in build and orchestration configuration rather than application code:
+It currently does not start end-to-end. Investigation found four defects, all in build and orchestration configuration rather than application code:
 
 1. **No dependency caching, seven times over.** Each of the seven `Dockerfile` stages runs `COPY . .` then `mvn clean package -pl <module> -am -DskipTests`. Because the source copy precedes dependency resolution, every stage invalidates its cache on any file change and re-downloads plus rebuilds the full dependency graph. A cold `--build` performs seven complete Maven builds.
 2. **Oversized build context.** `.dockerignore` excludes `**/target`, `.git`, `.idea`, `*.iml`, `.mvn`, and `.DS_Store` — but not `node_modules`. `jari-frontend/node_modules` is therefore streamed into the daemon for all seven stages.
-3. **Wrong Postgres volume mount.** `postgres_data:/var/lib/postgresql` mounts over the *parent* of the Postgres data directory rather than `/var/lib/postgresql/data`.
-4. **`depends_on` without readiness conditions.** Plain `depends_on` orders container creation only, not readiness. Services race Postgres, RabbitMQ, and Eureka and fail their first connection; `restart: always` then retries them silently.
-5. **Non-repeatable database provisioning.** `postgres/init-db.sql` is mounted into `/docker-entrypoint-initdb.d/`, which the Postgres image executes *only when the data directory is empty*. Any pre-existing volume — including one left over from the MySQL-to-Postgres migration — leaves all five databases missing.
+3. **`depends_on` without readiness conditions.** Plain `depends_on` orders container creation only, not readiness. Services race Postgres, RabbitMQ, and Eureka and fail their first connection; `restart: always` then retries them silently.
+4. **Non-repeatable database provisioning.** `postgres/init-db.sql` is mounted into `/docker-entrypoint-initdb.d/`, which the Postgres image executes *only when the data directory is empty*. Any pre-existing volume — including one left over from the MySQL-to-Postgres migration — leaves all five databases missing.
 
-Defects 1 and 2 together mean a first build can take tens of minutes with no useful progress output, which is easily mistaken for a hang. Defects 3, 4, and 5 interact: a stale or misplaced data directory means the init script never runs, so every data service fails to connect, and `restart: always` presents that as an indefinitely "starting" stack. This combination is the most probable explanation for the reported symptom.
+Defects 1 and 2 together mean a first build can take tens of minutes with no useful progress output, which is easily mistaken for a hang. Defects 3 and 4 interact: a stale or misplaced data directory means the init script never runs, so every data service fails to connect, and `restart: always` presents that as an indefinitely "starting" stack. This combination is the most probable explanation for the reported symptom.
+
+**Not a defect, despite looking like one:** the compose file mounts the Postgres volume at `postgres_data:/var/lib/postgresql` (the parent of the data directory), which is what the pre-18 Postgres image convention would call wrong. It is correct here: Postgres 18's image switched to recommending exactly this parent mount, since it manages version-specific subdirectories internally to support `pg_upgrade --link`. Confirmed by breaking it deliberately and reading `docker logs jari-postgres` — see tasks.md 3.1.
 
 ## Goals / Non-Goals
 
@@ -73,12 +74,12 @@ The gateway's `AuthenticationFilter` throws raw `RuntimeException` (surfacing as
 - **Cold build is still slow on first run** → Expected and acceptable; dependency resolution has to happen once. Document the expected duration in the README so a slow first build is not mistaken for a hang. This is the specific misreading that may have produced the original symptom.
 - **Healthchecks turn a slow start into a hard failure** → That is the intent, but tune `start_period` and `retries` so a merely slow Postgres on a cold machine does not fail the stack.
 - **`.dockerignore` excludes `.mvn`, so `./mvnw` is unavailable inside the image** → Harmless today because stages invoke the image's own `mvn`. Noted so a future stage does not switch to the wrapper and break mysteriously.
-- **Corrected volume mount invalidates existing local data** → Acceptable; there is no data worth keeping. Call out `down -v` explicitly so it is a decision rather than a surprise.
+- **Pinning `postgres:latest` to `postgres:18` invalidates existing local data on the old default** → Acceptable; there is no data worth keeping. Call out `down -v` explicitly so it is a decision rather than a surprise.
 - **Verification is manual** → Accepted for this phase only. The next phase introduces Testcontainers, at which point the smoke procedure should be superseded by an automated test.
 
 ## Migration Plan
 
-1. Fix `.dockerignore` and the compose volume mount and healthchecks first — cheap, independently verifiable.
+1. Fix `.dockerignore` and the compose healthchecks first — cheap, independently verifiable.
 2. Make `init-db.sql` idempotent; verify with both an empty and a pre-existing volume.
 3. Restructure the `Dockerfile`, one stage at a time, starting with `jari-discovery` (fewest dependencies).
 4. Bring the stack up, work outward from infrastructure: Postgres and RabbitMQ healthy → Eureka healthy → gateway registered → services registered.

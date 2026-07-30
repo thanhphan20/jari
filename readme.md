@@ -108,30 +108,31 @@ Start services in dependency order: `jari-discovery` → `jari-gateway` → `jar
 
 Once the stack is up, this checklist proves the core path works end-to-end. All requests go through the gateway at `http://localhost:8080`.
 
-1. **Check every service reports healthy**:
+1. **Check every service reports healthy**. Use `--fail` so the command itself fails on a non-2xx response instead of printing a 503 body and exiting 0:
    ```bash
-   curl http://localhost:8761/actuator/health   # eureka-discovery
-   curl http://localhost:8081/actuator/health   # auth-service
-   curl http://localhost:8082/actuator/health   # user-service
-   curl http://localhost:8083/actuator/health   # project-service
-   curl http://localhost:8084/actuator/health   # task-service
-   curl http://localhost:8085/actuator/health   # notification-service
+   curl --fail http://localhost:8761/actuator/health   # eureka-discovery
+   curl --fail http://localhost:8081/actuator/health   # auth-service
+   curl --fail http://localhost:8082/actuator/health   # user-service
+   curl --fail http://localhost:8083/actuator/health   # project-service
+   curl --fail http://localhost:8084/actuator/health   # task-service
+   curl --fail http://localhost:8085/actuator/health   # notification-service
    ```
    Each should return `{"status":"UP"}` with HTTP 200.
 
-2. **Register a user**:
+2. **Register a user**. Use a fresh username each run — the smoketest user persists in `jari_auth`, and registering the same username twice fails before you get to test token issuance and routing:
    ```bash
+   RUN_ID=$(date +%s)
    curl -X POST http://localhost:8080/auth/register \
      -H "Content-Type: application/json" \
-     -d '{"username":"smoketest","password":"Passw0rd!","email":"smoketest@example.com"}'
+     -d "{\"username\":\"smoketest-$RUN_ID\",\"password\":\"Passw0rd!\",\"email\":\"smoketest-$RUN_ID@example.com\"}"
    ```
    Expect `"user added to the system"`.
 
-3. **Request a token**:
+3. **Request a token** (reuse the same `$RUN_ID`):
    ```bash
    curl -X POST http://localhost:8080/auth/token \
      -H "Content-Type: application/json" \
-     -d '{"username":"smoketest","password":"Passw0rd!"}'
+     -d "{\"username\":\"smoketest-$RUN_ID\",\"password\":\"Passw0rd!\"}"
    ```
    Expect a JWT string back.
 
@@ -215,7 +216,7 @@ Each microservice uses its own Postgres database, created by `postgres/init-db.s
 - `jari_task` - Task Service
 - `jari_notification` - Notification Service
 
-The init script only runs when the Postgres data volume is empty. Use `docker compose down -v` to force re-provisioning.
+A dedicated `db-init` service runs `postgres/init-db.sql` on every `docker compose up`, not just against an empty volume — so a database added to the script later gets created even against a volume that already exists. Application services wait for `db-init` to complete successfully before starting. `docker compose down -v` remains the way to wipe all data and start over.
 
 ## Known Limitations
 
@@ -225,7 +226,6 @@ This is a learning project and several defects are intentionally left in place u
 - Two independent `User` tables (`jari-auth-service`, `jari-user-service`), reconciled only by a one-shot RabbitMQ message on registration — no ongoing sync.
 - The issued JWT carries only the username, not a stable user ID, so a task's `assigneeId`/`reporterId` cannot currently be resolved from a token.
 - `jari-common`'s `GlobalExceptionHandler` uses the Servlet-based `WebRequest` type, which fails to resolve in the gateway's WebFlux context — a gateway-level exception surfaces as a generic 503 rather than the intended error body.
-- Kanban task ordering can collide (`KanbanService.moveTask` doesn't shift siblings).
 - `ddl-auto: update` is still in force; no migration tooling yet.
 
 ## Development Notes

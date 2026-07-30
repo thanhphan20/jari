@@ -1,6 +1,7 @@
 ## 1. Decisions to settle before coding
 
-- [ ] 1.1 Confirm the roles model for this phase: global roles only in the token, project roles deliberately excluded (see design open questions).
+- [x] 1.1 Confirm the roles model for this phase: global roles only in the token, project roles deliberately excluded (see design open questions).
+  - Resolved: a flat `roles` claim carrying global roles only (e.g. `["USER"]`), hardcoded for now since no roles table exists yet - matches what `CustomUserDetails.getAuthorities()` already encoded before this change. Project-scoped roles are Phase 3's `ProjectMember` concern and never enter the token, since a project role baked into a token can't be revoked before expiry. This decision must land before implementation touches the entity, seeder, or token generation - all three need to agree with it.
 - [ ] 1.2 Choose the identity header names and record the choice (`X-User-Id` versus a namespaced `X-Jari-User-Id`).
 - [ ] 1.3 Decide whether `DataSeeder` survives the collapse.
 
@@ -56,7 +57,7 @@
 ## 8. Downstream identity consumption
 
 - [ ] 8.1 Add identity-header reading to project, task, and notification services, rejecting requests that lack the headers with HTTP 401.
-- [ ] 8.2 Verify a direct call to a service port, bypassing the gateway, is rejected.
+- [ ] 8.2 Verify a direct call to a service port, bypassing the gateway, is rejected when it carries no identity headers. Then verify the harder case: a direct call that supplies a *forged* `X-Jari-User-Id` header succeeds against `IdentityHeaderFilter` (it only checks presence, not provenance) - confirm this is the accepted, documented risk (see 10.3/10.4), not a silent gap.
 - [ ] 8.3 Add `GET /api/users/me`, resolving the caller from the propagated identity.
 - [ ] 8.4 Verify `/me` ignores a client-supplied identifier and still returns the authenticated caller.
 - [ ] 8.5 Verify `/me` without credentials returns 401.
@@ -73,7 +74,7 @@
 
 - [ ] 10.1 Re-run the Phase 0 smoke procedure; confirm it still passes with five services instead of six.
 - [ ] 10.2 Extend the smoke procedure with the token-claim check and the `/me` check.
-- [ ] 10.3 Document the trusted-header trust model explicitly: downstream services trust identity headers unconditionally, and this is only sound because the gateway is the sole ingress.
-- [ ] 10.4 Document the locally published service ports as a development-only exposure that must not reach a shared environment.
+- [ ] 10.3 Document the trusted-header trust model explicitly: downstream services trust identity headers unconditionally, and this is only sound because the gateway is the sole ingress. Don't just narrate this - the 8.2 forged-header test is what turns it from an assumption into a demonstrated, verified consequence.
+- [ ] 10.4 Document the locally published service ports as a development-only exposure that must not reach a shared environment. Any deployment that is not a single developer's machine (staging, shared, multi-tenant) MUST NOT publish downstream service ports and MUST place those services on a network unreachable from outside the gateway - this is a hard requirement for that case, not a suggestion, precisely because 8.2 shows what happens if it's skipped.
 - [ ] 10.5 State clearly in the change summary that authorization is still absent — any authenticated user can still read all tasks — and that Phase 3 closes it.
 - [ ] 10.6 Update `README.md`: service count, endpoint list, and the removal of the registration event flow.

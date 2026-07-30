@@ -13,7 +13,7 @@ This change therefore lands before the feature phases, not after them.
 - **A Testcontainers integration-test harness** per data service: a real Postgres container, and a real RabbitMQ container where the service uses one. Wired through Spring Boot's `@ServiceConnection` so no test-specific datasource configuration is duplicated.
 - **A first integration test covering the identity flow** end-to-end within the identity service: register, authenticate, verify the issued token's `userId` claim, and resolve the caller through self-lookup. This is the flow the previous change introduced, and it is currently verified only by hand.
 - **`mvn verify` runs the integration tests** from a clean state, so "the tests pass" is one command rather than a procedure.
-- **A documented decision on end-to-end coverage.** Testcontainers gives each service real infrastructure, but it does not stand up sibling services. The cross-service assertion in the project's definition of done spans three services, so how that test is built is decided here and implemented when those services exist.
+- **A documented decision on end-to-end coverage.** Testcontainers gives each service real infrastructure, but it does not stand up sibling services. The cross-service assertion in the project's definition of done spans four services — identity, project, task, and notification — so how that test is built is decided here and implemented when those services exist.
 
 ## Capabilities
 

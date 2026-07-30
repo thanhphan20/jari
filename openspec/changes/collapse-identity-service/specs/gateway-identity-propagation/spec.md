@@ -73,7 +73,7 @@ A downstream service SHALL determine the calling user from the gateway-injected 
 
 ### Requirement: Trusted headers are only trustworthy because the gateway is the sole entry point
 
-The deployment SHALL ensure downstream services are not reachable from outside the internal network, since they accept identity headers without independent verification.
+`IdentityHeaderFilter` verifies only that an identity header is *present*, not that it originated from the gateway - a direct caller can set `X-Jari-User-Id` to any value and impersonate any user. Locally, published service ports make this reachable; this is accepted for a single developer's machine (see Non-Goals) but is a hard requirement, not a suggestion, outside it. Any deployment that is not a single developer's own machine (staging, shared, multi-tenant) SHALL NOT publish downstream service ports, and SHALL place those services on a network unreachable from outside the gateway.
 
 #### Scenario: The trust assumption is documented
 
@@ -85,3 +85,14 @@ The deployment SHALL ensure downstream services are not reachable from outside t
 
 - **WHEN** the compose configuration publishes downstream service ports to the host
 - **THEN** that exposure is documented as a local development convenience that must not be carried into a shared environment
+
+#### Scenario: A forged identity header is demonstrated, not just assumed possible
+
+- **WHEN** a direct call to a downstream service's port supplies a forged `X-Jari-User-Id` header
+- **THEN** the call succeeds against `IdentityHeaderFilter`, since it checks header presence, not provenance
+- **AND** this is verified by test, not left as a documented assumption - see collapse-identity-service tasks.md 8.2
+
+#### Scenario: Downstream services are internal-only outside local development
+
+- **WHEN** the deployment target is anything other than a single developer's own machine
+- **THEN** downstream service ports are not published to any host reachable from outside the gateway
