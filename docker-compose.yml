@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: 'postgres:latest'
+    image: 'postgres:18'
     container_name: jari-postgres
     environment:
       - 'POSTGRES_USER=postgres'
@@ -14,6 +14,12 @@ services:
     restart: always
     networks:
       - jari-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   rabbitmq:
     image: 'rabbitmq:3-management'
@@ -24,6 +30,12 @@ services:
     networks:
       - jari-network
     restart: always
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
   eureka-discovery:
     build:
@@ -37,10 +49,17 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-discovery:8761/eureka/
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - jari-network
     restart: always
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8761/actuator/health']
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
 
   api-gateway:
     build:
@@ -54,7 +73,8 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-discovery:8761/eureka/
     depends_on:
-      - eureka-discovery
+      eureka-discovery:
+        condition: service_healthy
     networks:
       - jari-network
     restart: always
@@ -75,9 +95,12 @@ services:
       - SPRING_RABBITMQ_HOST=rabbitmq
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-discovery:8761/eureka/
     depends_on:
-      - postgres
-      - rabbitmq
-      - eureka-discovery
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-discovery:
+        condition: service_healthy
     networks:
       - jari-network
     restart: always
@@ -98,9 +121,12 @@ services:
       - SPRING_RABBITMQ_HOST=rabbitmq
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-discovery:8761/eureka/
     depends_on:
-      - postgres
-      - rabbitmq
-      - eureka-discovery
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-discovery:
+        condition: service_healthy
     networks:
       - jari-network
     restart: always
@@ -120,8 +146,10 @@ services:
       - SPRING_DATASOURCE_PASSWORD=postgres
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-discovery:8761/eureka/
     depends_on:
-      - postgres
-      - eureka-discovery
+      postgres:
+        condition: service_healthy
+      eureka-discovery:
+        condition: service_healthy
     networks:
       - jari-network
     restart: always
@@ -141,8 +169,10 @@ services:
       - SPRING_DATASOURCE_PASSWORD=postgres
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-discovery:8761/eureka/
     depends_on:
-      - postgres
-      - eureka-discovery
+      postgres:
+        condition: service_healthy
+      eureka-discovery:
+        condition: service_healthy
     networks:
       - jari-network
     restart: always
@@ -162,8 +192,10 @@ services:
       - SPRING_DATASOURCE_PASSWORD=postgres
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-discovery:8761/eureka/
     depends_on:
-      - postgres
-      - eureka-discovery
+      postgres:
+        condition: service_healthy
+      eureka-discovery:
+        condition: service_healthy
     networks:
       - jari-network
     restart: always

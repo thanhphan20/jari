@@ -4,3 +4,5 @@
 *.iml
 .mvn
 **/.DS_Store
+**/node_modules
+jari-frontend/dist
