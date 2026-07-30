@@ -1,7 +1,7 @@
-package com.example.jari.auth.config;
+package com.example.jari.user.config;
 
-import com.example.jari.auth.entity.User;
-import com.example.jari.auth.repository.UserRepository;
+import com.example.jari.user.entity.User;
+import com.example.jari.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -18,7 +18,8 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<User> credential = repository.findByUsername(username);
-        return credential.map(CustomUserDetails::new).orElseThrow(() -> new UsernameNotFoundException("user not found with name :" + username));
+        Optional<User> user = repository.findByUsername(username);
+        return user.map(CustomUserDetails::new)
+                .orElseThrow(() -> new UsernameNotFoundException("user not found with name :" + username));
     }
 }

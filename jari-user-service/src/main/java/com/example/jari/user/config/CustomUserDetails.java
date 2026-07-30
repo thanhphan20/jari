@@ -1,6 +1,6 @@
-package com.example.jari.auth.config;
+package com.example.jari.user.config;
 
-import com.example.jari.auth.entity.User;
+import com.example.jari.user.entity.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,12 +10,14 @@ import java.util.List;
 
 public class CustomUserDetails implements UserDetails {
 
-    private String username;
-    private String password;
+    private final User user;
 
     public CustomUserDetails(User user) {
-        this.username = user.getUsername();
-        this.password = user.getPassword();
+        this.user = user;
+    }
+
+    public Long getId() {
+        return user.getId();
     }
 
     @Override
@@ -25,12 +27,12 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public String getPassword() {
-        return password;
+        return user.getPassword();
     }
 
     @Override
     public String getUsername() {
-        return username;
+        return user.getUsername();
     }
 
     @Override
@@ -50,6 +52,6 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return user.isActive();
     }
 }

@@ -9,11 +9,11 @@ spring:
   cloud:
     gateway:
       routes:
-        - id: auth-service
-          uri: lb://jari-auth-service
+        - id: auth-routes
+          uri: lb://jari-user-service
           predicates:
             - Path=/auth/**
-          # No AuthenticationFilter for auth routes
+          # No AuthenticationFilter for auth routes - identity service now owns them too
         - id: user-service
           uri: lb://jari-user-service
           predicates:
@@ -67,18 +67,10 @@ spring:
             - Path=/v3/api-docs/notification-service
           filters:
             - RewritePath=/v3/api-docs/notification-service, /v3/api-docs
-        - id: auth-service-v3-docs
-          uri: lb://jari-auth-service
-          predicates:
-            - Path=/v3/api-docs/auth-service
-          filters:
-            - RewritePath=/v3/api-docs/auth-service, /v3/api-docs
 
 springdoc:
   swagger-ui:
     urls:
-      - name: Auth Service
-        url: /v3/api-docs/auth-service
       - name: User Service
         url: /v3/api-docs/user-service
       - name: Project Service

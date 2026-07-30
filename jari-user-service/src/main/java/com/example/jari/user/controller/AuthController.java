@@ -1,8 +1,9 @@
-package com.example.jari.auth.controller;
+package com.example.jari.user.controller;
 
-import com.example.jari.auth.dto.AuthRequest;
-import com.example.jari.auth.entity.User;
-import com.example.jari.auth.service.AuthService;
+import com.example.jari.user.dto.AuthRequest;
+import com.example.jari.user.dto.RegisterRequest;
+import com.example.jari.user.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,8 +15,8 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public String addNewUser(@RequestBody User user) {
-        return authService.saveUser(user);
+    public String register(@Valid @RequestBody RegisterRequest request) {
+        return authService.saveUser(request);
     }
 
     @PostMapping("/token")

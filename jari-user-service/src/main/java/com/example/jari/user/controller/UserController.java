@@ -1,6 +1,7 @@
 package com.example.jari.user.controller;
 
 import com.example.jari.common.dto.ResponseDto;
+import com.example.jari.security.IdentityHeaders;
 import com.example.jari.user.dto.UserDto;
 import com.example.jari.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +35,21 @@ public class UserController {
                 .status(HttpStatus.CREATED.value())
                 .build();
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @Operation(summary = "Get the authenticated caller's own user record")
+    @ApiResponse(responseCode = "200", description = "Current user retrieved successfully")
+    @GetMapping("/me")
+    public ResponseEntity<ResponseDto<UserDto>> getCurrentUser(
+            @RequestHeader(IdentityHeaders.USER_ID) Long userId) {
+        UserDto user = userService.getUserById(userId);
+        ResponseDto<UserDto> response = ResponseDto.<UserDto>builder()
+                .success(true)
+                .message("Current user retrieved successfully")
+                .data(user)
+                .status(HttpStatus.OK.value())
+                .build();
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Get user by ID")
