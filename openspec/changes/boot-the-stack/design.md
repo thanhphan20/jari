@@ -24,7 +24,7 @@ Defects 1 and 2 together mean a first build can take tens of minutes with no use
 
 **Non-Goals:**
 
-- No application code changes. Known application defects (unresolvable user identity, missing authorization, Kanban ordering collisions) are deliberately left in place; they belong to later phases and fixing them here would obscure whether the boot fix worked.
+- No application code changes beyond what boot verification itself requires. Known application defects (unresolvable user identity, missing authorization, Kanban ordering collisions) are deliberately left in place; they belong to later phases and fixing them here would obscure whether the boot fix worked. Two narrow exceptions surfaced by the boot smoke check itself are in scope: the gateway's `AuthenticationFilter` status codes (see Decisions), and permitting `/actuator/health` in `auth-service`'s `SecurityConfig` — discovered during verification, since `auth-service` was the only service whose Spring Security chain blocked its own health endpoint with 403, violating the `local-stack-boot` spec's "every service reports its health" requirement.
 - No production concerns: no image registry, no orchestration beyond compose, no secrets management, no TLS.
 - No frontend container. The frontend runs outside compose via `bun run dev`.
 - No test suite. That is the next phase.
