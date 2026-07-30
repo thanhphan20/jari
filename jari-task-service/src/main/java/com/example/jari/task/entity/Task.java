@@ -26,6 +26,8 @@ public class Task {
     private String summary;
 
     private String description;
+
+    @Column(name = "task_order") // "order" is a reserved word in Postgres and cannot be an unquoted column name
     private Integer order;
     private Integer priority; // 1=Lowest, 2=Low, 3=Medium, 4=High, 5=Highest
     private Integer type; // 1=Task, 2=Bug, 3=Story, 4=Epic
