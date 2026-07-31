@@ -106,8 +106,8 @@ Start services in dependency order: `jari-discovery` → `jari-gateway` → `jar
 
 ```bash
 cd jari-frontend
-npm ci
-npm run dev
+bun install
+bun run dev
 ```
 
 Open http://localhost:5173 and sign in with the seeded `admin` / `admin123` (or `user` / `user123`).
