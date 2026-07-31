@@ -28,6 +28,11 @@ jobs:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
           cache: maven
+      # jari-common and jari-security both declare the root aggregator pom as
+      # their <parent>. A later job resolving jari-common as a dependency (in
+      # its own, separate mvn invocation) needs that parent pom in the local
+      # repo too, not just the two submodules - install it non-recursively.
+      - run: ./mvnw -B -N install
       - run: ./mvnw -B -pl jari-common,jari-security compile
       - run: ./mvnw -B -pl jari-common,jari-security test
       - run: ./mvnw -B -pl jari-common,jari-security install
@@ -126,9 +131,17 @@ jobs:
         with:
           path: jari-frontend/node_modules
           key: frontend-node_modules-${{ runner.os }}-${{ hashFiles('jari-frontend/bun.lock') }}-${{ github.run_id }}
-      # No test script exists yet (no test runner installed) - skip rather
-      # than fail CI on a script that isn't there.
-      - run: bun run --if-present test
+      # No test script exists yet (no test runner installed). Guard with grep
+      # rather than `bun run --if-present test`: when the script is missing,
+      # bun falls back to a PATH lookup and happily runs /usr/bin/test - which
+      # exits 1 on empty input and fails the job for a reason that has nothing
+      # to do with this repo.
+      - run: |
+          if grep -q '"test"[[:space:]]*:' package.json; then
+            bun run test
+          else
+            echo "no \"test\" script in package.json - skipping"
+          fi
 
   frontend-build:
     name: Frontend / build
