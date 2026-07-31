@@ -10,6 +10,7 @@ import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { ProjectSettings } from './components/ProjectSettings';
 import { CreateProjectDialog } from './components/CreateProjectDialog';
+import { CreateIssueDialog } from './components/CreateIssueDialog';
 import type { Project } from './types/project';
 import type { Task } from './types/kanban';
 
@@ -51,6 +52,7 @@ function ProjectShell() {
     queryFn: listProjects,
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   if (isLoading) {
     return <div className="p-6 text-sm text-gray-500">Loading...</div>;
@@ -68,14 +70,21 @@ function ProjectShell() {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar project={project} onOpenSettings={() => setSettingsOpen(true)} />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="px-4 py-3 bg-white border-b border-gray-200">
+        <header className="px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between">
           <h1 className="text-lg font-bold text-blue-600">Jari</h1>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Create issue
+          </button>
         </header>
         <main className="flex-1 min-h-0">
           <Board projectId={project.id} />
         </main>
       </div>
       {settingsOpen && <ProjectSettings project={project} onClose={() => setSettingsOpen(false)} />}
+      {createOpen && <CreateIssueDialog project={project} onClose={() => setCreateOpen(false)} />}
     </div>
   );
 }

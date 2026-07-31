@@ -47,12 +47,17 @@
 
 ## 4. Create and delete
 
-- [ ] 4.1 Add a create-issue dialog with summary, description, type, priority, and assignee.
-- [ ] 4.2 Derive the issue key client-side from the project key and the highest existing numeric suffix.
+- [x] 4.1 Add a create-issue dialog with summary, description, type, priority, and assignee.
+  - Summary enforces the backend's own bounds (`@Size(min = 5, max = 100)` on `TaskDto`) in the input itself, so a rejected submission is rare rather than the normal path.
+- [x] 4.2 Derive the issue key client-side from the project key and the highest existing numeric suffix.
   - **Known-racy, deliberately.** `TaskService.createTask` stores whatever key it is sent and never generates one, and `tasks.key` has no unique constraint — the defect `V1__baseline.sql` records on purpose. Two clients creating at once can collide. Do not paper over it in the client; the fix is a per-project counter on the server, in a later phase.
-- [ ] 4.3 Set `reporterId` from `GET /users/me` on create.
-- [ ] 4.4 Add delete with a confirmation step.
-- [ ] 4.5 Confirm a created issue lands in the first column, persists across a reload, and shows its key.
+  - Verified: with `JARI-1..5` existing, creating an issue produced `JARI-6`, confirmed directly in Postgres.
+- [x] 4.3 Set `reporterId` from `GET /users/me` on create.
+  - Verified: creating as `admin` set `reporter_id = 1` in the row, matching admin's persisted id.
+- [x] 4.4 Add delete with a confirmation step.
+  - Verified the gate itself, not just the end state: clicked "Delete issue" once, confirmed the row still existed in Postgres (the button had only switched to "Cancel"/"Delete"), then clicked "Delete" and confirmed the row was gone.
+- [x] 4.5 Confirm a created issue lands in the first column, persists across a reload, and shows its key.
+  - `JARI-6` landed in Todo with its key visible, type (Bug), priority (High), and assignee (admin, "AD" avatar) all correct. Zero console errors through create, open, and delete.
 
 ## 5. Drag and drop
 
