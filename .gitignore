@@ -34,3 +34,5 @@ build/
 
 .agent
 .claude
+.gstack/
+.omo/
