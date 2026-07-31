@@ -62,8 +62,8 @@ jobs:
       - run: ./mvnw -B -pl ${{ matrix.service }} test
       - run: ./mvnw -B -pl ${{ matrix.service }} install
 
-  frontend-install:
-    name: Frontend / install
+  frontend:
+    name: Frontend
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -74,63 +74,8 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
-      - uses: actions/cache/save@v4
-        with:
-          path: jari-frontend/node_modules
-          key: frontend-node_modules-${{ runner.os }}-${{ hashFiles('jari-frontend/bun.lock') }}-${{ github.run_id }}
-
-  frontend-lint:
-    name: Frontend / lint
-    runs-on: ubuntu-latest
-    needs: frontend-install
-    defaults:
-      run:
-        working-directory: jari-frontend
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache/restore@v4
-        with:
-          path: jari-frontend/node_modules
-          key: frontend-node_modules-${{ runner.os }}-${{ hashFiles('jari-frontend/bun.lock') }}-${{ github.run_id }}
       - run: bun run lint
-
-  frontend-typecheck:
-    name: Frontend / typecheck
-    runs-on: ubuntu-latest
-    needs: frontend-install
-    defaults:
-      run:
-        working-directory: jari-frontend
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache/restore@v4
-        with:
-          path: jari-frontend/node_modules
-          key: frontend-node_modules-${{ runner.os }}-${{ hashFiles('jari-frontend/bun.lock') }}-${{ github.run_id }}
       - run: bunx tsc -b
-
-  frontend-test:
-    name: Frontend / test
-    runs-on: ubuntu-latest
-    needs: frontend-install
-    defaults:
-      run:
-        working-directory: jari-frontend
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache/restore@v4
-        with:
-          path: jari-frontend/node_modules
-          key: frontend-node_modules-${{ runner.os }}-${{ hashFiles('jari-frontend/bun.lock') }}-${{ github.run_id }}
       # No test script exists yet (no test runner installed). Guard with grep
       # rather than `bun run --if-present test`: when the script is missing,
       # bun falls back to a PATH lookup and happily runs /usr/bin/test - which
@@ -142,21 +87,4 @@ jobs:
           else
             echo "no \"test\" script in package.json - skipping"
           fi
-
-  frontend-build:
-    name: Frontend / build
-    runs-on: ubuntu-latest
-    needs: [frontend-lint, frontend-typecheck]
-    defaults:
-      run:
-        working-directory: jari-frontend
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache/restore@v4
-        with:
-          path: jari-frontend/node_modules
-          key: frontend-node_modules-${{ runner.os }}-${{ hashFiles('jari-frontend/bun.lock') }}-${{ github.run_id }}
       - run: bun run build
