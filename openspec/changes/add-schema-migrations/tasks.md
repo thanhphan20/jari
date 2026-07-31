@@ -21,19 +21,24 @@
 
 ## 3. Verify the migrations at runtime
 
-**Status: not done.** Every item below needs a running database and none was executed. The migration files and configuration are written and compile; nothing here has run against Postgres. Section 2 being complete does **not** mean the migrations work.
+**Status: mostly verified.** 3.1-3.3 were executed and passed while implementing `add-kanban-browser-demo`, which needed a working backend. 3.4 remains open.
 
-- [ ] 3.1 Bring the stack up from removed volumes; confirm each service applies its migrations and starts with no validation mismatch.
-- [ ] 3.2 Restart without clearing volumes; confirm no migration re-applies and startup succeeds.
-- [ ] 3.3 Confirm `flyway_schema_history` records the applied version in each of the four databases.
+- [x] 3.1 Bring the stack up from removed volumes; confirm each service applies its migrations and starts with no validation mismatch.
+  - Stack brought up from a destroyed volume on Flyway-built images. All four data services report `{"status":"UP"}` with `ddl-auto: validate` in force — meaning Hibernate compared every entity against the migrated schema and found no mismatch. The hand-written baselines match the entities.
+- [x] 3.2 Restart without clearing volumes; confirm no migration re-applies and startup succeeds.
+  - `docker compose restart user-service` against the already-migrated database: came back `UP`, and `flyway_schema_history` still holds exactly one row.
+- [x] 3.3 Confirm `flyway_schema_history` records the applied version in each of the four databases.
+  - All four report `1 baseline success=true`: `jari_user`, `jari_project`, `jari_task`, `jari_notification`.
 - [ ] 3.4 Verify drift detection: add an entity field with no migration, confirm startup fails naming the mismatch, then revert.
   - Worth doing deliberately rather than assuming: per design, `validate` checks columns and types but **not** constraints, so this proves column drift detection only.
+  - Still open. Note that 3.1 is *weak* evidence for this — a passing `validate` shows the schema matches, not that a mismatch would be caught. Only deliberately breaking it proves the mechanism.
 
 ## 4. Document
 
 - [ ] 4.1 Document the forward-only migration rule in `README.md`: never edit an applied migration, always add a new one.
 - [ ] 4.2 Document `docker compose down -v` as the supported way to rebuild a schema from scratch.
-- [ ] 4.3 Note in `README.md` that migrations are currently verified by booting the stack, not by an automated test, and that `add-integration-test-harness` closes that gap.
+- [x] 4.3 Note in `README.md` that migrations are currently verified by booting the stack, not by an automated test, and that `add-integration-test-harness` closes that gap.
+  - Done in the Roadmap section while updating it for `add-kanban-browser-demo`. The stale "`ddl-auto: update` is still in force; no migration tooling yet" line in Known Limitations was removed at the same time — it had become false and leaving it while editing the surrounding section would have been worse than the small scope bleed.
 
 ## 5. Decisions settled during this change
 

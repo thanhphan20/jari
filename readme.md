@@ -100,9 +100,31 @@ mvn clean install
 
 Start services in dependency order: `jari-discovery` → `jari-gateway` → `jari-user-service` → the remaining services, each via `mvn spring-boot:run` in its module directory. `jari-gateway` and `jari-user-service` also need `JARI_SECURITY_JWT_SECRET` set in the environment (see Known Limitations) - both fail to start without it, by design.
 
-### Frontend (not yet wired up)
+### Frontend
 
-`jari-frontend/` exists but is not part of the boot/smoke path yet — see the project roadmap for when it lands.
+`jari-frontend/` is a React + Vite client that logs in against the identity service and renders a project's Kanban board from live backend data. Bring the stack up first — the frontend has nothing to show without it.
+
+```bash
+cd jari-frontend
+npm ci
+npm run dev
+```
+
+Open http://localhost:5173 and sign in with the seeded `admin` / `admin123`.
+
+The board is empty on a fresh database: three columns (`Todo`, `In Progress`, `Done`) and no cards. `KanbanService` returns those three columns unconditionally, so empty columns are the correct first result rather than a failure. To give it something to show, create a few tasks — reusing the token from step 3 of the smoke test:
+
+```bash
+curl -X POST http://localhost:8080/api/tasks \
+  -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+  -d '{"key":"JARI-1","summary":"Render the board","status":"IN_PROGRESS","projectId":1,"priority":3,"type":1}'
+```
+
+`projectId` must be `1` — the board's project id is a constant in `src/App.tsx` until there is a project picker. Valid statuses are `TODO`, `IN_PROGRESS`, and `DONE`.
+
+**How browser requests reach the gateway.** The Vite dev server proxies `/api` and `/auth` to `http://localhost:8080`, so the browser makes same-origin requests. This is load-bearing, not a convenience: a cross-origin call would be preflighted, and a CORS preflight carries no `Authorization` header, so the gateway's `AuthenticationFilter` rejects it with 401 before the real request is ever sent. Same-origin requests are not preflighted, so the problem does not arise.
+
+The consequence is that **this works for the dev server only**. Serving the frontend from any other origin needs real CORS on the gateway — including short-circuiting `OPTIONS` ahead of authentication — or serving the built assets through the gateway itself. Neither exists yet. `jari-frontend/.env.example` documents the override variables and repeats this warning.
 
 ## Smoke Test
 
@@ -235,8 +257,10 @@ This is a learning project and several defects are intentionally left in place u
 - **Authorization is still absent.** Identity now flows end-to-end (a request through the gateway carries a real, verified `userId`), but no service checks *what* that user may access. Any authenticated user can still read or modify any project's or any other user's data - `GET /api/tasks` returns every task in the system regardless of who asks. Closing this is Phase 3 (`ProjectMember` + project-scoped authorization checks), not this phase.
 - **The trusted-header model only holds because the gateway is the sole ingress.** After validating a token, the gateway injects `X-Jari-User-Id`/`X-Jari-Username` into the forwarded request; downstream services (`user`, `project`, `task`, `notification`) trust those headers unconditionally - `IdentityHeaderFilter` checks only that the headers are *present*, not that they came from the gateway. This is not a theoretical gap: a direct call to a downstream port with a forged `X-Jari-User-Id` header succeeds and impersonates that user (verified - see `collapse-identity-service` tasks.md 8.2). It is only safe as long as nothing can reach a downstream service except through the gateway.
 - **Every service's port is published to the host** (`8082`-`8085` in `docker-compose.yml`), which is a local-development convenience. Outside a single developer's own machine (staging, shared, multi-tenant), downstream service ports **MUST NOT** be published and those services **MUST** sit on a network unreachable from outside the gateway - this is a hard requirement, not a suggestion, precisely because the impersonation above is a demonstrated, working bypass, not a hypothetical.
+- **The frontend keeps its token in `localStorage`**, which is readable by any script on the origin and therefore XSS-exposed in a way an `HttpOnly` cookie is not. It is stored there so a page reload does not log you out, which during a demo reads as a bug rather than a design choice. Same shape of admission as the trusted-header entry above: acceptable on a single developer's machine, must not survive contact with a shared deployment. The honest fix is a cookie set by the gateway, which makes the gateway a session participant rather than a stateless token validator — an architectural change, not a tweak.
+- **Bad credentials return HTTP 500, not 401.** `POST /auth/token` with a wrong password or an unknown username surfaces Spring Security's `BadCredentialsException` unmapped, producing `{"message":"Bad credentials","status":500}`. This violates the accepted `identity` capability spec, which requires 401 for both cases. The body is at least uniform across the two, so it does not leak whether the username exists. Found by the browser demo; being fixed in its own change rather than folded into that one.
 - `jari-common`'s `GlobalExceptionHandler` uses the Servlet-based `WebRequest` type, which fails to resolve in the gateway's WebFlux context — a gateway-level exception surfaces as a generic 503 rather than the intended error body.
-- `ddl-auto: update` is still in force; no migration tooling yet.
+- **`RouterValidator` decides the auth boundary by substring match.** `path.contains(uri)` over its open-endpoints list means a path like `/api/tasks/1/swagger-ui` skips `AuthenticationFilter` entirely, and task-service's `IdentityHeaderFilter` exempts `/swagger-ui` too, so such a request clears both gates. It returns 404 today because no handler matches, so nothing leaks — but the boundary holds by accident rather than by design. Fix is prefix matching, in its own change.
 
 ## Development Notes
 
@@ -247,7 +271,17 @@ This is a learning project and several defects are intentionally left in place u
 
 ## Roadmap
 
-Planned work is tracked as OpenSpec changes under `openspec/changes/` (completed phases move to `openspec/changes/archive/` and their capabilities into `openspec/specs/`). Completed: `boot-the-stack`, `collapse-identity-service`. Next: `add-schema-migrations-and-integration-tests` (Flyway + Testcontainers), then Phase 3 (project membership + authorization).
+Planned work is tracked as OpenSpec changes under `openspec/changes/` (completed phases move to `openspec/changes/archive/` and their capabilities into `openspec/specs/`).
+
+Completed: `boot-the-stack`, `collapse-identity-service`.
+
+In progress:
+
+- `add-schema-migrations` — Flyway owns each service's schema, with `ddl-auto: validate` so entity drift fails startup. Migrations apply and all services boot against them; the remaining runtime checks (restart idempotency, deliberate drift detection) are still open.
+- `add-kanban-browser-demo` — log in and see a real board in the browser. Read-only.
+- `add-integration-test-harness` — Testcontainers against real Postgres and RabbitMQ, plus the first automated identity-flow test. Deferred; until it lands, migrations are verified by booting the stack rather than by `mvn verify`.
+
+Next: drag-and-drop on the board, then Phase 3 (project membership + authorization).
 
 ## License
 
