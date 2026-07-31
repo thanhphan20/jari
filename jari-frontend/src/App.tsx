@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getKanbanBoard } from './api/kanban';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getKanbanBoard, moveTask } from './api/kanban';
 import { listProjects } from './api/projects';
 import { listUsers } from './api/users';
 import { getToken, onUnauthorized } from './api/client';
-import { KanbanBoard } from './components/KanbanBoard';
+import { KanbanBoard, type MoveArgs } from './components/KanbanBoard';
 import { IssueDetail } from './components/IssueDetail';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
@@ -12,11 +12,14 @@ import { ProjectSettings } from './components/ProjectSettings';
 import { CreateProjectDialog } from './components/CreateProjectDialog';
 import { CreateIssueDialog } from './components/CreateIssueDialog';
 import type { Project } from './types/project';
-import type { Task } from './types/kanban';
+import type { KanbanBoard as KanbanBoardType, Task } from './types/kanban';
 
 function Board({ projectId }: { projectId: number }) {
+  const queryKey = ['kanban', projectId];
+  const queryClient = useQueryClient();
+
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['kanban', projectId],
+    queryKey,
     queryFn: () => getKanbanBoard(projectId),
     // A 401 is handled globally by signing the user out; retrying it would
     // just burn requests before that happens.
@@ -29,6 +32,49 @@ function Board({ projectId }: { projectId: number }) {
   const usersById = useMemo(() => new Map(users?.map((u) => [u.id, u])), [users]);
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [moveError, setMoveError] = useState(false);
+
+  // Optimistic: the card moves in the cache the instant the drop happens,
+  // rather than waiting for the round trip - a drag that visibly hangs before
+  // settling reads as broken. onMutate snapshots the board so onError can put
+  // it back exactly as it was; onSettled always refetches afterward, so the
+  // client never has the last word over the server.
+  const move = useMutation({
+    mutationFn: (args: MoveArgs) => moveTask(args.taskId, args.targetStatus, args.targetIndex),
+    onMutate: async (args: MoveArgs) => {
+      setMoveError(false);
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<KanbanBoardType>(queryKey);
+
+      queryClient.setQueryData<KanbanBoardType>(queryKey, (board) => {
+        if (!board) return board;
+        let moved: Task | undefined;
+        const withoutTask = board.columns.map((c) => ({
+          ...c,
+          tasks: c.tasks.filter((t) => {
+            if (t.id === args.taskId) moved = t;
+            return t.id !== args.taskId;
+          }),
+        }));
+        if (!moved) return board;
+        const movedTask: Task = { ...moved, status: args.targetStatus };
+        return {
+          columns: withoutTask.map((c) =>
+            c.id === args.targetStatus
+              ? { ...c, tasks: [...c.tasks.slice(0, args.targetIndex), movedTask, ...c.tasks.slice(args.targetIndex)] }
+              : c,
+          ),
+        };
+      });
+
+      return { previous };
+    },
+    onError: (_err, _args, context) => {
+      if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
+      setMoveError(true);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  });
 
   if (isError) {
     return (
@@ -40,7 +86,18 @@ function Board({ projectId }: { projectId: number }) {
 
   return (
     <>
-      <KanbanBoard board={data ?? null} isLoading={isLoading} usersById={usersById} onSelectTask={setSelectedTask} />
+      {moveError && (
+        <div className="mx-4 mt-2 p-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
+          Could not move the issue. It has been put back.
+        </div>
+      )}
+      <KanbanBoard
+        board={data ?? null}
+        isLoading={isLoading}
+        usersById={usersById}
+        onSelectTask={setSelectedTask}
+        onMove={(args) => move.mutate(args)}
+      />
       {selectedTask && <IssueDetail task={selectedTask} onClose={() => setSelectedTask(null)} />}
     </>
   );

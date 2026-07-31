@@ -61,15 +61,22 @@
 
 ## 5. Drag and drop
 
-- [ ] 5.1 Make cards draggable and columns drop targets using native HTML5 drag events.
-- [ ] 5.2 Compute the insertion index from pointer position against card midpoints; show a drop indicator.
-- [ ] 5.3 Call `POST /tasks/kanban/move` with `taskId`, `targetStatus`, and `targetIndex`.
-- [ ] 5.4 Apply the move optimistically via React Query `onMutate`, snapshotting the previous board.
-- [ ] 5.5 Roll back to the snapshot on error and surface an inline message, then invalidate to reconcile.
+- [x] 5.1 Make cards draggable and columns drop targets using native HTML5 drag events.
+- [x] 5.2 Compute the insertion index from pointer position against card midpoints; show a drop indicator.
+  - `dropIndexFor` walks the target column's `[data-card]` elements and returns the index before the first one whose vertical midpoint is below the pointer. A blue 2px bar renders at that index (including the end-of-column position, which needed its own check after the last card).
+- [x] 5.3 Call `POST /tasks/kanban/move` with `taskId`, `targetStatus`, and `targetIndex`.
+- [x] 5.4 Apply the move optimistically via React Query `onMutate`, snapshotting the previous board.
+- [x] 5.5 Roll back to the snapshot on error and surface an inline message, then invalidate to reconcile.
   - Inline rather than a toast: a toast system is infrastructure this app does not have, and one message does not justify building it.
-- [ ] 5.6 Verify each case explicitly, not just the happy path: across columns, within a column, to an empty column, to the start and end of a column, and dropped outside any column (must be a no-op with no request).
-- [ ] 5.7 Verify a failed move visibly reverts — block the request and confirm the card returns to its original position.
-- [ ] 5.8 Confirm order and status survive a reload.
+- [x] 5.6 Verify each case explicitly, not just the happy path: across columns, within a column, to an empty column, to the start and end of a column, and dropped outside any column (must be a no-op with no request).
+  - All verified against the **real backend**, not mocked, via scripted `DragEvent`s with a real `DataTransfer`: cross-column (Todo→Done), within-column reorder (to the end, then explicitly to the very start, confirming the whole column reindexes both times), drop into an empty column, and drop outside every column onto `document.body` — confirmed as a true no-op: the DB was byte-for-byte unchanged and the network log gained zero new requests (three legitimate drags produced exactly three requests total, matching exactly).
+  - **A real timing bug in the verification method itself, not the app**: dispatching `dragover` immediately after `dragstart` with no yield read a stale `draggedTaskId` closure (still `null`) from before React flushed the `dragstart` handler's `setState`, so the drop silently did nothing. Spacing dispatches apart (as a real mouse-driven drag naturally does, firing many `dragover` events over the course of a gesture) resolved it. Recorded because it clarifies that this is a scripted-event artifact, not evidence of a race a real user could hit — a genuine drag always has many `dragover` events between `dragstart` and `drop`, giving React ample time to catch up.
+- [~] 5.7 Verify a failed move visibly reverts — block the request and confirm the card returns to its original position.
+  - **Partially verified; the gap is recorded rather than glossed over.** Stopping `task-service` entirely and dragging produced a real failure after Eureka's discovery lag (~31s): the move POST returned 500. But the optimistic UI was **not** left in a clean rolled-back state with the inline banner — `onSettled`'s `invalidateQueries` also refetched the board GET, which *also* failed (503, since the whole service was down), and the pre-existing board-level `isError` branch (from `add-kanban-browser-demo`) takes priority over showing cached data, so the user saw the full "Could not load the board" screen rather than the specific "Could not move the issue" banner. This is arguably correct for that failure mode - if the entire service is unreachable, a full error state is more honest than a possibly-stale board - but it means the *narrower* failure this task actually asks about (a single move request fails, e.g. a validation conflict, while the rest of the service stays healthy) was not cleanly demonstrated.
+  - Tried to isolate that narrower case via client-side fault injection (patching `XMLHttpRequest.prototype.send` to synthesize a failure only for `/kanban/move`) and could not get a reliable result - the technique is order-sensitive against React's batched re-renders in ways a real network failure is not, so a negative result here is inconclusive rather than a finding. Spending more effort on this is exactly the wrong tool for the job: a proper single-endpoint failure simulation is what `add-integration-test-harness`'s Testcontainers-based tests are for, and this is recorded as a concrete argument for that phase rather than something to keep forcing here.
+  - What **is** established: the `onMutate`/`onError`/`onSettled` code follows the standard React Query optimistic-update pattern correctly by inspection - snapshot via `getQueryData` before mutating, restore via `setQueryData` in `onError`, unconditional `invalidateQueries` in `onSettled` regardless of outcome - and a real failure does reach and execute *some* error-handling path, as the whole-service-outage test demonstrates.
+- [x] 5.8 Confirm order and status survive a reload.
+  - Verified repeatedly across the section's testing, and once more explicitly at the end: read the column contents from the DOM after a hard reload, compared key-for-key against `SELECT key, status, task_order FROM tasks`, and both matched exactly.
 
 ## 6. Filtering
 
