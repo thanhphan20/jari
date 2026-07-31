@@ -11,7 +11,10 @@ spring:
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      # Flyway owns the schema (src/main/resources/db/migration). validate makes an
+      # entity change without a matching migration a startup failure, not a silent
+      # schema mutation.
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:

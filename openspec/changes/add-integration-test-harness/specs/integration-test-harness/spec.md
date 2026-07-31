@@ -26,20 +26,32 @@ Integration tests SHALL exercise services against real Postgres and, where the s
 - **THEN** the provisioned infrastructure is removed
 - **AND** no state from that run affects a subsequent run
 
+#### Scenario: Provisioned infrastructure does not collide with a developer's own services
+
+- **WHEN** the host already runs a database on the conventional port
+- **THEN** the provisioned container is still reached correctly by the suite
+- **AND** the tests do not connect to the host's own instance
+
 ### Requirement: Tests verify migrations rather than bypassing them
 
-Integration tests SHALL obtain their schema by running the service's own migrations, so a broken migration fails the test suite.
+Integration tests SHALL obtain their schema by running the service's own migrations, so a broken migration fails the test suite. This is the automated verification that `add-schema-migrations` deliberately deferred: before this capability exists, a broken migration is caught only by a developer starting the service.
 
 #### Scenario: Test schema comes from migrations
 
 - **WHEN** an integration test starts
 - **THEN** the schema is created by applying the service's migration files
+- **AND** the schema is not generated from entity definitions
 
 #### Scenario: A broken migration fails the suite
 
 - **WHEN** a migration file contains invalid SQL
 - **THEN** the integration test suite fails
 - **AND** the failure identifies the migration at fault
+
+#### Scenario: Entity drift from the migrated schema fails the suite
+
+- **WHEN** an entity declares a field that no migration provides a column for
+- **THEN** the integration test suite fails rather than passing against a generated schema
 
 ### Requirement: The identity flow is covered end-to-end within its service
 
@@ -93,6 +105,11 @@ The full test suite SHALL be runnable with one command from a clean checkout, an
 - **THEN** the failure message identifies the missing runtime as the cause
 - **AND** does not present as an unrelated connection or timeout error
 
+#### Scenario: The suite does not depend on the developer's machine configuration
+
+- **WHEN** the suite is run on a machine whose locale or timezone differs from the author's
+- **THEN** the tests produce the same result
+
 ### Requirement: Cross-service coverage has a decided approach
 
 Because per-service integration tests provision infrastructure but not sibling services, the approach for verifying flows that span multiple services SHALL be decided and documented before those flows are built.
@@ -106,3 +123,15 @@ Because per-service integration tests provision infrastructure but not sibling s
 
 - **WHEN** the cross-service definition of done is reviewed
 - **THEN** it is traceable to a specific planned test rather than to manual verification
+
+#### Scenario: Each tier's responsibility is recorded
+
+- **WHEN** a developer needs to know where a given behavior should be tested
+- **THEN** the documentation states that failure-injection and circuit-breaker behavior belong to the per-service tier
+- **AND** that the cross-service definition of done belongs to the single end-to-end test
+
+#### Scenario: The deferral of the end-to-end test is explicit
+
+- **WHEN** a developer asks why the end-to-end test does not exist yet
+- **THEN** the documentation records that it is deferred until the behavior it asserts is built
+- **AND** explains that building it earlier would mean asserting behavior that does not exist

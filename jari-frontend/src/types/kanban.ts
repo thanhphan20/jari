@@ -4,9 +4,14 @@ export interface Task {
   summary: string;
   description?: string;
   status: string;
+  order?: number;
   priority: number;
   type: number;
+  projectId: number;
+  reporterId?: number;
   assigneeId?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface KanbanColumn {
