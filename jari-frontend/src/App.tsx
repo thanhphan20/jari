@@ -16,7 +16,7 @@ import { CreateIssueDialog } from './components/CreateIssueDialog';
 import { FilterBar } from './components/FilterBar';
 import type { Project } from './types/project';
 import type { KanbanBoard as KanbanBoardType, Task } from './types/kanban';
-import { EMPTY_FILTERS, type Filters } from './types/filters';
+import { EMPTY_FILTERS, isActive, type Filters } from './types/filters';
 
 // Applied client-side over the already-fetched board: the board arrives as
 // one payload of every issue in the project, so filtering it server-side
@@ -127,6 +127,15 @@ function Board({ projectId }: { projectId: number }) {
         usersById={usersById}
         onSelectTask={setSelectedTask}
         onMove={(args) => move.mutate(args)}
+        // A drop's target index is computed against whatever board is
+        // rendered - which, while any filter is active, is filteredBoard, a
+        // subset. The mutation always applies that index to the full
+        // unfiltered cache, so a filtered index has no correct translation
+        // back (hidden siblings mean the "same visual position" maps to a
+        // different real position). Disabling drag is simpler and more
+        // honest than a translation that would still be wrong whenever a
+        // hidden task sits between the source and target slots.
+        dragDisabled={isActive(filters)}
       />
       {selectedTask && <IssueDetail task={selectedTask} onClose={() => setSelectedTask(null)} />}
     </>
@@ -134,9 +143,10 @@ function Board({ projectId }: { projectId: number }) {
 }
 
 function ProjectShell({ onSignedOut }: { onSignedOut: () => void }) {
-  const { data: projects, isLoading, refetch } = useQuery({
+  const { data: projects, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['projects'],
     queryFn: listProjects,
+    retry: false,
   });
   // Shares the ['me'] cache entry with Board's own query below - React Query
   // dedupes by key, so this doesn't double the request.
@@ -147,6 +157,19 @@ function ProjectShell({ onSignedOut }: { onSignedOut: () => void }) {
 
   if (isLoading) {
     return <div className="p-6 text-sm text-gray-500">Loading...</div>;
+  }
+
+  // Checked before the empty-project branch below, not after: without this,
+  // a real failure (network down, 500, an expired-but-not-yet-401 token)
+  // left `projects` undefined, which `projects?.[0]` turns into "no
+  // project", which rendered the first-run "create your first project"
+  // screen - misrepresenting an error as an empty database.
+  if (isError) {
+    return (
+      <div className="p-6 text-sm text-red-600">
+        Could not load your projects: {error instanceof Error ? error.message : 'unknown error'}
+      </div>
+    );
   }
 
   // There are zero rows in the projects table on a fresh clone - the board
@@ -188,16 +211,33 @@ function ProjectShell({ onSignedOut }: { onSignedOut: () => void }) {
 
 function App() {
   const [authenticated, setAuthenticated] = useState(() => getToken() !== null);
+  const queryClient = useQueryClient();
+
+  // Clears every cached query - not just the token - on the way out. Without
+  // this, React Query's stale-while-revalidate behavior would briefly render
+  // the previous session's board/tasks/comments from cache the instant a
+  // different user logs in on the same tab, before the fresh fetch resolves.
+  // Called from both sign-out paths: automatic (401, below) and manual
+  // (ProfileMenu's Sign out, via onSignedOut).
+  const signOut = () => {
+    queryClient.clear();
+    setAuthenticated(false);
+  };
 
   // The response interceptor clears the token on a 401; this puts the UI back
   // on the login screen rather than leaving a blank or half-rendered page.
-  useEffect(() => onUnauthorized(() => setAuthenticated(false)), []);
+  // signOut is intentionally omitted from the deps: it's recreated every
+  // render, but only closes over queryClient (stable for the component's
+  // lifetime) and setAuthenticated (stable by React's own guarantee), so a
+  // stale closure here can't reference stale state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => onUnauthorized(signOut), []);
 
   if (!authenticated) {
     return <Login onAuthenticated={() => setAuthenticated(true)} />;
   }
 
-  return <ProjectShell onSignedOut={() => setAuthenticated(false)} />;
+  return <ProjectShell onSignedOut={signOut} />;
 }
 
 export default App;

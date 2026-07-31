@@ -55,6 +55,7 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
       invalidateBoard();
     },
   });
+  const [closeSaveError, setCloseSaveError] = useState(false);
 
   const remove = useMutation({
     mutationFn: () => deleteTask(task.id),
@@ -71,10 +72,29 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
   // extension, or synthetic input event ever delivers blur and click out of
   // the order this assumes, the edit is lost silently with no error shown.
   // Flushing explicitly before closing removes the assumption entirely.
-  const handleClose = () => {
-    if (task.summary !== initialTask.summary) update.mutate({ summary: task.summary });
-    if (task.description !== initialTask.description) update.mutate({ description: task.description });
-    onClose();
+  //
+  // One combined save, not two independent ones, and awaited before closing:
+  // `task` already holds both fields merged locally, so a single PUT carries
+  // everything that changed. Firing two separate mutate() calls here was
+  // redundant rather than actually racy - both would send the same complete
+  // snapshot - but the real bug was that onClose() ran unconditionally
+  // regardless of outcome, so a failed save unmounted the panel (and its
+  // error message) with no feedback at all. Awaiting the save and only
+  // closing on success fixes that; a failure now keeps the panel open with
+  // the error visible instead of silently discarding the edit.
+  const handleClose = async () => {
+    const dirty = task.summary !== initialTask.summary || task.description !== initialTask.description;
+    if (!dirty) {
+      onClose();
+      return;
+    }
+    try {
+      setCloseSaveError(false);
+      await update.mutateAsync({ summary: task.summary, description: task.description });
+      onClose();
+    } catch {
+      setCloseSaveError(true);
+    }
   };
 
   const assignee = users?.find((u) => u.id === task.assigneeId);
@@ -149,6 +169,11 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
             </div>
 
             {update.isError && <div className="text-sm text-red-600">Could not save the change.</div>}
+            {closeSaveError && (
+              <div className="text-sm text-red-600">
+                Could not save your changes. The issue is still open so you can try again.
+              </div>
+            )}
 
             <CommentThread taskId={task.id} usersById={usersById} />
           </div>

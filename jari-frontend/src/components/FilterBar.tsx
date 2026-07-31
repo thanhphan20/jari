@@ -14,6 +14,7 @@ interface Props {
 export const FilterBar: React.FC<Props> = ({ filters, onChange, users, currentUserId }) => (
   <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-gray-200 flex-wrap">
     <input
+      aria-label="Search issues"
       className="px-2 py-1 text-sm border border-gray-300 rounded w-48"
       placeholder="Search issues"
       value={filters.text}
@@ -35,6 +36,7 @@ export const FilterBar: React.FC<Props> = ({ filters, onChange, users, currentUs
     </div>
 
     <select
+      aria-label="Filter by issue type"
       className="px-2 py-1 text-sm border border-gray-300 rounded"
       value={filters.type ?? ''}
       onChange={(e) => onChange({ ...filters, type: e.target.value ? Number(e.target.value) : null })}

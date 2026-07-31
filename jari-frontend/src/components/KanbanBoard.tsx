@@ -17,11 +17,19 @@ interface Props {
   usersById?: Map<number, User>;
   onSelectTask?: (task: Task) => void;
   onMove?: (args: MoveArgs) => void;
+  // Disables drag entirely rather than translating indices between a
+  // filtered view and the canonical (unfiltered) board a filter can hide
+  // siblings from - see App.tsx's applyFilters. Reordering against a
+  // partial view doesn't have an unambiguous meaning anyway.
+  dragDisabled?: boolean;
 }
 
 // Computes the insertion index from pointer position by comparing against
 // each existing card's vertical midpoint - the drop lands before the first
-// card whose midpoint is below the pointer, or at the end otherwise.
+// card whose midpoint is below the pointer, or at the end otherwise. This
+// index is relative to the rendered list, which still includes the dragged
+// card itself (dimmed, not removed) - see the same-column adjustment in
+// onDrop below for why that matters.
 function dropIndexFor(container: HTMLElement, clientY: number): number {
   const cards = Array.from(container.querySelectorAll<HTMLElement>('[data-card]'));
   for (let i = 0; i < cards.length; i++) {
@@ -31,8 +39,12 @@ function dropIndexFor(container: HTMLElement, clientY: number): number {
   return cards.length;
 }
 
-export const KanbanBoard: React.FC<Props> = ({ board, isLoading, usersById, onSelectTask, onMove }) => {
-  const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
+export const KanbanBoard: React.FC<Props> = ({ board, isLoading, usersById, onSelectTask, onMove, dragDisabled }) => {
+  // Tracks where the drag started, not just which task - the column and
+  // index at drag-start, so onDrop can correct for the array shift that
+  // removing the dragged card causes when reordering within that same
+  // column (see the comment at the adjustment below).
+  const [dragSource, setDragSource] = useState<{ taskId: number; columnId: string; index: number } | null>(null);
   const [dragOver, setDragOver] = useState<{ columnId: string; index: number } | null>(null);
 
   if (isLoading) {
@@ -54,7 +66,7 @@ export const KanbanBoard: React.FC<Props> = ({ board, isLoading, usersById, onSe
           key={column.id}
           className="shrink-0 w-80 bg-gray-100 rounded-lg flex flex-col"
           onDragOver={(e) => {
-            if (draggedTaskId === null) return;
+            if (dragSource === null) return;
             e.preventDefault();
             setDragOver({ columnId: column.id, index: dropIndexFor(e.currentTarget, e.clientY) });
           }}
@@ -65,10 +77,25 @@ export const KanbanBoard: React.FC<Props> = ({ board, isLoading, usersById, onSe
           }}
           onDrop={(e) => {
             e.preventDefault();
-            if (draggedTaskId !== null && dragOver?.columnId === column.id) {
-              onMove?.({ taskId: draggedTaskId, targetStatus: column.id, targetIndex: dragOver.index });
+            if (dragSource !== null && dragOver?.columnId === column.id) {
+              let targetIndex = dragOver.index;
+              // Reordering within the same column: dropIndexFor's result is
+              // computed against the rendered list, which still includes the
+              // dragged card at its original slot. Removing it (which the
+              // move always does, before reinserting) shifts every later
+              // index back by one - inserting at the raw computed index would
+              // then land one slot too late. Example: [A,B,C], drag A to
+              // "before C" computes index 2; without this adjustment,
+              // removing A first gives [B,C] and inserting at 2 appends
+              // (-> [B,C,A]) instead of landing between B and C (-> [B,A,C]).
+              // Moving to a different column needs no adjustment, since
+              // removing from column X doesn't shift column Y's indices.
+              if (dragSource.columnId === column.id && dragSource.index < targetIndex) {
+                targetIndex -= 1;
+              }
+              onMove?.({ taskId: dragSource.taskId, targetStatus: column.id, targetIndex });
             }
-            setDraggedTaskId(null);
+            setDragSource(null);
             setDragOver(null);
           }}
         >
@@ -86,15 +113,24 @@ export const KanbanBoard: React.FC<Props> = ({ board, isLoading, usersById, onSe
                   )}
                   <div
                     data-card
-                    draggable
-                    onDragStart={() => setDraggedTaskId(task.id)}
+                    draggable={!dragDisabled}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Open ${task.key}: ${task.summary}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onSelectTask?.(task);
+                      }
+                    }}
+                    onDragStart={() => setDragSource({ taskId: task.id, columnId: column.id, index })}
                     onDragEnd={() => {
-                      setDraggedTaskId(null);
+                      setDragSource(null);
                       setDragOver(null);
                     }}
                     onClick={() => onSelectTask?.(task)}
-                    className="p-3 bg-white rounded shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
-                    style={{ opacity: draggedTaskId === task.id ? 0.4 : 1 }}
+                    className="p-3 bg-white rounded shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    style={{ opacity: dragSource?.taskId === task.id ? 0.4 : 1 }}
                   >
                     <div className="flex items-start gap-1.5 text-sm text-gray-800 font-medium mb-2">
                       <IssueTypeIcon type={task.type} className="mt-0.5 shrink-0" />
