@@ -80,10 +80,13 @@
 
 ## 6. Filtering
 
-- [ ] 6.1 Add a filter bar: text search, assignee avatars, issue type, and "only my issues".
-- [ ] 6.2 Filter client-side over the fetched board; leave the server untouched.
-- [ ] 6.3 Add a clear-filters action, shown only when a filter is active.
-- [ ] 6.4 Confirm columns emptied by a filter remain visible, and that filtering modifies no issue.
+- [x] 6.1 Add a filter bar: text search, assignee avatars, issue type, and "only my issues".
+- [x] 6.2 Filter client-side over the fetched board; leave the server untouched.
+  - `applyFilters` runs over the already-cached board data; no new endpoint, no new request.
+- [x] 6.3 Add a clear-filters action, shown only when a filter is active.
+  - Verified both states: hidden with no filter set, appears the moment any filter is touched, clicking it resets to all five issues visible.
+- [x] 6.4 Confirm columns emptied by a filter remain visible, and that filtering modifies no issue.
+  - Verified live: text search to one match, assignee toggle on/off, and "only my issues" down to zero matches (admin has no assigned issues) - in every case all three columns stayed rendered with "No tasks" shown rather than disappearing, and `SELECT count(*) FROM tasks` stayed at 5 throughout.
 
 ## 7. Verify and document
 

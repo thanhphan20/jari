@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getKanbanBoard, moveTask } from './api/kanban';
 import { listProjects } from './api/projects';
-import { listUsers } from './api/users';
+import { listUsers, getCurrentUser } from './api/users';
 import { getToken, onUnauthorized } from './api/client';
 import { KanbanBoard, type MoveArgs } from './components/KanbanBoard';
 import { IssueDetail } from './components/IssueDetail';
@@ -11,8 +11,31 @@ import { Sidebar } from './components/Sidebar';
 import { ProjectSettings } from './components/ProjectSettings';
 import { CreateProjectDialog } from './components/CreateProjectDialog';
 import { CreateIssueDialog } from './components/CreateIssueDialog';
+import { FilterBar } from './components/FilterBar';
 import type { Project } from './types/project';
 import type { KanbanBoard as KanbanBoardType, Task } from './types/kanban';
+import { EMPTY_FILTERS, type Filters } from './types/filters';
+
+// Applied client-side over the already-fetched board: the board arrives as
+// one payload of every issue in the project, so filtering it server-side
+// would mean more requests for less responsiveness, and there is no endpoint
+// for it anyway. Stops being the right call once a project has enough issues
+// that fetching them all is itself the problem - not a concern at demo scale.
+function applyFilters(board: KanbanBoardType, filters: Filters, currentUserId?: number): KanbanBoardType {
+  const text = filters.text.trim().toLowerCase();
+  return {
+    columns: board.columns.map((c) => ({
+      ...c,
+      tasks: c.tasks.filter((t) => {
+        if (text && !t.summary.toLowerCase().includes(text)) return false;
+        if (filters.assigneeId !== null && t.assigneeId !== filters.assigneeId) return false;
+        if (filters.type !== null && t.type !== filters.type) return false;
+        if (filters.onlyMine && t.assigneeId !== currentUserId) return false;
+        return true;
+      }),
+    })),
+  };
+}
 
 function Board({ projectId }: { projectId: number }) {
   const queryKey = ['kanban', projectId];
@@ -30,9 +53,11 @@ function Board({ projectId }: { projectId: number }) {
   // not exist until Phase 3, so there is no smaller set to draw from yet.
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: listUsers, retry: false });
   const usersById = useMemo(() => new Map(users?.map((u) => [u.id, u])), [users]);
+  const { data: currentUser } = useQuery({ queryKey: ['me'], queryFn: getCurrentUser, retry: false });
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [moveError, setMoveError] = useState(false);
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
 
   // Optimistic: the card moves in the cache the instant the drop happens,
   // rather than waiting for the round trip - a drag that visibly hangs before
@@ -84,15 +109,18 @@ function Board({ projectId }: { projectId: number }) {
     );
   }
 
+  const filteredBoard = data ? applyFilters(data, filters, currentUser?.id) : data;
+
   return (
     <>
+      <FilterBar filters={filters} onChange={setFilters} users={users} currentUserId={currentUser?.id} />
       {moveError && (
         <div className="mx-4 mt-2 p-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded">
           Could not move the issue. It has been put back.
         </div>
       )}
       <KanbanBoard
-        board={data ?? null}
+        board={filteredBoard ?? null}
         isLoading={isLoading}
         usersById={usersById}
         onSelectTask={setSelectedTask}
