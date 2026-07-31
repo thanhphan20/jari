@@ -23,3 +23,36 @@ export interface KanbanColumn {
 export interface KanbanBoard {
   columns: KanbanColumn[];
 }
+
+export interface EnumMeta {
+  label: string;
+  color: string;
+}
+
+export const TYPE_META: Record<number, EnumMeta> = {
+  1: { label: 'Task', color: '#2563eb' },
+  2: { label: 'Bug', color: '#dc2626' },
+  3: { label: 'Story', color: '#16a34a' },
+  4: { label: 'Epic', color: '#7c3aed' },
+};
+
+export const PRIORITY_META: Record<number, EnumMeta> = {
+  1: { label: 'Lowest', color: '#2563eb' },
+  2: { label: 'Low', color: '#16a34a' },
+  3: { label: 'Medium', color: '#ca8a04' },
+  4: { label: 'High', color: '#ea580c' },
+  5: { label: 'Highest', color: '#dc2626' },
+};
+
+export const TYPE_IDS = Object.keys(TYPE_META).map(Number);
+export const PRIORITY_IDS = Object.keys(PRIORITY_META).map(Number);
+
+// KanbanService.STANDARD_COLUMNS is exactly these three; moveTask throws on
+// anything else, and PUT /tasks/{id} has no such guard of its own - sending
+// a status outside this list would desync the task from every board column.
+export const STATUSES = ['TODO', 'IN_PROGRESS', 'DONE'];
+export const STATUS_PILL: Record<string, string> = {
+  TODO: 'bg-gray-200 text-gray-700',
+  IN_PROGRESS: 'bg-blue-600 text-white',
+  DONE: 'bg-green-600 text-white',
+};

@@ -1,3 +1,4 @@
+import { Plus } from '@phosphor-icons/react';
 import { NotificationBell } from './NotificationBell';
 import { ProfileMenu } from './ProfileMenu';
 import type { User } from '../types/user';
@@ -21,9 +22,9 @@ export const NavbarLeft: React.FC<Props> = ({ onCreateIssue, currentUser, onSign
     <button
       onClick={onCreateIssue}
       title="Create issue"
-      className="mt-4 w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center text-xl hover:bg-white/20"
+      className="mt-4 w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20"
     >
-      +
+      <Plus size={18} weight="bold" />
     </button>
     {currentUser && <NotificationBell userId={currentUser.id} />}
     {currentUser && <ProfileMenu user={currentUser} onSignedOut={onSignedOut} />}

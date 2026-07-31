@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updateProject } from '../api/projects';
 import type { Project } from '../types/project';
+import { Modal } from './Modal';
 
 interface Props {
   project: Project;
@@ -29,8 +30,8 @@ export const ProjectSettings: React.FC<Props> = ({ project, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-20">
-      <form onSubmit={handleSubmit} className="w-96 bg-white p-6 rounded-lg shadow-lg">
+    <Modal onClose={onClose} panelClassName="w-96 bg-white p-6 rounded-lg shadow-lg">
+      <form onSubmit={handleSubmit}>
         <h2 className="text-lg font-semibold mb-4">Project settings</h2>
 
         <label className="block text-sm text-gray-700 mb-1" htmlFor="proj-name">Name</label>
@@ -66,6 +67,6 @@ export const ProjectSettings: React.FC<Props> = ({ project, onClose }) => {
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 };

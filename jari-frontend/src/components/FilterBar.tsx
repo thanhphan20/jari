@@ -1,8 +1,8 @@
+import { MagnifyingGlass } from '@phosphor-icons/react';
 import type { User } from '../types/user';
 import { EMPTY_FILTERS, isActive, type Filters } from '../types/filters';
+import { TYPE_META } from '../types/kanban';
 import { Avatar } from './Avatar';
-
-const TYPE_LABELS: Record<number, string> = { 1: 'Task', 2: 'Bug', 3: 'Story', 4: 'Epic' };
 
 interface Props {
   filters: Filters;
@@ -13,13 +13,16 @@ interface Props {
 
 export const FilterBar: React.FC<Props> = ({ filters, onChange, users, currentUserId }) => (
   <div className="flex items-center gap-3 px-4 py-2 bg-white border-b border-gray-200 flex-wrap">
-    <input
-      aria-label="Search issues"
-      className="px-2 py-1 text-sm border border-gray-300 rounded w-48"
-      placeholder="Search issues"
-      value={filters.text}
-      onChange={(e) => onChange({ ...filters, text: e.target.value })}
-    />
+    <div className="relative">
+      <MagnifyingGlass size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+      <input
+        aria-label="Search issues"
+        className="pl-7 pr-2 py-1 text-sm border border-gray-300 rounded w-48"
+        placeholder="Search issues"
+        value={filters.text}
+        onChange={(e) => onChange({ ...filters, text: e.target.value })}
+      />
+    </div>
 
     <div className="flex items-center -space-x-1">
       {users?.map((u) => (
@@ -42,16 +45,16 @@ export const FilterBar: React.FC<Props> = ({ filters, onChange, users, currentUs
       onChange={(e) => onChange({ ...filters, type: e.target.value ? Number(e.target.value) : null })}
     >
       <option value="">All types</option>
-      {Object.entries(TYPE_LABELS).map(([v, label]) => (
-        <option key={v} value={v}>{label}</option>
+      {Object.entries(TYPE_META).map(([v, meta]) => (
+        <option key={v} value={v}>{meta.label}</option>
       ))}
     </select>
 
     <button
       onClick={() => onChange({ ...filters, onlyMine: !filters.onlyMine })}
       disabled={!currentUserId}
-      className={`px-2 py-1 text-sm rounded border ${
-        filters.onlyMine ? 'bg-blue-50 border-blue-400 text-blue-700' : 'border-gray-300 text-gray-600'
+      className={`text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed ${
+        filters.onlyMine ? 'text-blue-700 underline' : 'text-blue-600 hover:underline'
       }`}
     >
       Only my issues

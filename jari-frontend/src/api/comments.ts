@@ -10,7 +10,3 @@ export const addComment = async (taskId: number, body: string): Promise<Comment>
   const response = await api.post(`/tasks/${taskId}/comments`, { body });
   return response.data.data;
 };
-
-export const deleteComment = async (taskId: number, commentId: number): Promise<void> => {
-  await api.delete(`/tasks/${taskId}/comments/${commentId}`);
-};

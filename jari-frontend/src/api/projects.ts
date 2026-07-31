@@ -6,11 +6,6 @@ export const listProjects = async (): Promise<Project[]> => {
   return response.data.data;
 };
 
-export const getProject = async (id: number): Promise<Project> => {
-  const response = await api.get(`/projects/${id}`);
-  return response.data.data;
-};
-
 export const createProject = async (project: Pick<Project, 'key' | 'name' | 'description'>): Promise<Project> => {
   const response = await api.post('/projects', project);
   return response.data.data;

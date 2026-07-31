@@ -1,26 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowsInSimple, ArrowsOutSimple, CaretDown, Trash, X } from '@phosphor-icons/react';
 import { updateTask, deleteTask } from '../api/tasks';
 import { listUsers } from '../api/users';
-import type { Task } from '../types/kanban';
+import { TYPE_META, PRIORITY_META, TYPE_IDS, PRIORITY_IDS, STATUSES, STATUS_PILL, type Task } from '../types/kanban';
 import { IssueTypeIcon } from './icons/IssueTypeIcon';
 import { PriorityIcon } from './icons/PriorityIcon';
 import { Avatar } from './Avatar';
+import { Dropdown, DropdownItem } from './Dropdown';
+import { Modal } from './Modal';
 import { RichTextEditor } from './RichTextEditor';
 import { CommentThread } from './CommentThread';
-
-// KanbanService.STANDARD_COLUMNS is exactly these three; moveTask throws on
-// anything else, and PUT /tasks/{id} has no such guard of its own - sending
-// a status outside this list would desync the task from every board column.
-const STATUSES = ['TODO', 'IN_PROGRESS', 'DONE'];
-const TYPES = [1, 2, 3, 4];
-const PRIORITIES = [1, 2, 3, 4, 5];
-
-const STATUS_PILL: Record<string, string> = {
-  TODO: 'bg-gray-200 text-gray-700',
-  IN_PROGRESS: 'bg-blue-600 text-white',
-  DONE: 'bg-green-600 text-white',
-};
 
 interface Props {
   task: Task;
@@ -98,19 +88,36 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
   };
 
   const assignee = users?.find((u) => u.id === task.assigneeId);
-  const reporter = users?.find((u) => u.id === task.reporterId);
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-20 p-4" onClick={handleClose}>
-      <div
-        className={`w-full bg-white rounded-lg shadow-xl flex flex-col ${
-          fullscreen ? 'max-w-none h-full' : 'max-w-3xl max-h-[85vh]'
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Modal
+      onClose={handleClose}
+      panelClassName={`w-full bg-white rounded-lg shadow-xl flex flex-col ${
+        fullscreen ? 'max-w-none h-full' : 'max-w-3xl max-h-[85vh]'
+      }`}
+    >
         <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <IssueTypeIcon type={task.type} />
+            <Dropdown
+              trigger={<IssueTypeIcon type={task.type} className="cursor-pointer" />}
+              menuClassName="left-0 mt-1 min-w-[8rem]"
+            >
+              {(close) =>
+                TYPE_IDS.map((t) => (
+                  <DropdownItem
+                    key={t}
+                    active={t === task.type}
+                    onClick={() => {
+                      update.mutate({ type: t });
+                      close();
+                    }}
+                  >
+                    <IssueTypeIcon type={t} />
+                    <span>{TYPE_META[t].label}</span>
+                  </DropdownItem>
+                ))
+              }
+            </Dropdown>
             <span className="text-sm text-gray-500">{task.key}</span>
           </div>
           <div className="flex items-center gap-3">
@@ -129,8 +136,13 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
                 </button>
               </div>
             ) : (
-              <button onClick={() => setConfirmingDelete(true)} className="text-sm text-red-600 hover:underline">
-                Delete
+              <button
+                onClick={() => setConfirmingDelete(true)}
+                className="text-gray-400 hover:text-red-600"
+                aria-label="Delete issue"
+                title="Delete issue"
+              >
+                <Trash size={18} />
               </button>
             )}
             <button
@@ -139,10 +151,10 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
               aria-label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
               title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
             >
-              {fullscreen ? '⤡' : '⤢'}
+              {fullscreen ? <ArrowsInSimple size={18} /> : <ArrowsOutSimple size={18} />}
             </button>
             <button onClick={handleClose} className="text-gray-400 hover:text-gray-700" aria-label="Close">
-              ✕
+              <X size={18} />
             </button>
           </div>
         </div>
@@ -181,72 +193,105 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
           <div className="col-span-1 space-y-4">
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">Status</div>
-              <select
-                className={`w-full text-sm rounded p-1.5 font-medium border-none ${STATUS_PILL[task.status] ?? 'bg-gray-200 text-gray-700'}`}
-                value={task.status}
-                onChange={(e) => update.mutate({ status: e.target.value })}
+              <Dropdown
+                trigger={
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-sm font-medium rounded px-2.5 py-1.5 ${
+                      STATUS_PILL[task.status] ?? 'bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {task.status.replace('_', ' ')}
+                    <CaretDown size={12} />
+                  </span>
+                }
               >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                ))}
-              </select>
+                {(close) =>
+                  STATUSES.map((s) => (
+                    <DropdownItem
+                      key={s}
+                      active={s === task.status}
+                      onClick={() => {
+                        update.mutate({ status: s });
+                        close();
+                      }}
+                    >
+                      {s.replace('_', ' ')}
+                    </DropdownItem>
+                  ))
+                }
+              </Dropdown>
             </div>
 
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">Assignee</div>
-              <div className="flex items-center gap-2 mb-1">
-                <Avatar user={assignee} size={22} />
-                <span className="text-sm text-gray-700">{assignee ? assignee.username : 'Unassigned'}</span>
-              </div>
-              <select
-                className="w-full text-sm border border-gray-200 rounded p-1.5"
-                value={task.assigneeId ?? ''}
-                onChange={(e) => update.mutate({ assigneeId: e.target.value ? Number(e.target.value) : undefined })}
+              <Dropdown
+                triggerClassName="flex items-center gap-2 rounded p-1 -m-1 hover:bg-gray-50"
+                trigger={
+                  <>
+                    <Avatar user={assignee} size={22} />
+                    <span className="text-sm text-gray-700">{assignee ? assignee.username : 'Unassigned'}</span>
+                    <CaretDown size={12} className="text-gray-400" />
+                  </>
+                }
               >
-                <option value="">Unassigned</option>
-                {users?.map((u) => (
-                  <option key={u.id} value={u.id}>{u.username}</option>
-                ))}
-              </select>
+                {(close) => (
+                  <>
+                    <DropdownItem
+                      active={!task.assigneeId}
+                      onClick={() => {
+                        update.mutate({ assigneeId: undefined });
+                        close();
+                      }}
+                    >
+                      <Avatar user={undefined} size={20} />
+                      <span>Unassigned</span>
+                    </DropdownItem>
+                    {users?.map((u) => (
+                      <DropdownItem
+                        key={u.id}
+                        active={u.id === task.assigneeId}
+                        onClick={() => {
+                          update.mutate({ assigneeId: u.id });
+                          close();
+                        }}
+                      >
+                        <Avatar user={u} size={20} />
+                        <span>{u.username}</span>
+                      </DropdownItem>
+                    ))}
+                  </>
+                )}
+              </Dropdown>
             </div>
 
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Reporter</div>
-              <div className="flex items-center gap-2">
-                <Avatar user={reporter} size={22} />
-                <span className="text-sm text-gray-700">{reporter?.username ?? '-'}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <div className="text-xs font-medium text-gray-500 mb-1">Type</div>
-                <select
-                  className="w-full text-sm border border-gray-200 rounded p-1.5"
-                  value={task.type}
-                  onChange={(e) => update.mutate({ type: Number(e.target.value) })}
-                >
-                  {TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div className="text-xs font-medium text-gray-500 mb-1">Priority</div>
-                <div className="flex items-center gap-1">
-                  <PriorityIcon priority={task.priority} />
-                  <select
-                    className="w-full text-sm border border-gray-200 rounded p-1.5"
-                    value={task.priority}
-                    onChange={(e) => update.mutate({ priority: Number(e.target.value) })}
-                  >
-                    {PRIORITIES.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              <div className="text-xs font-medium text-gray-500 mb-1">Priority</div>
+              <Dropdown
+                triggerClassName="flex items-center gap-1.5 rounded p-1 -m-1 hover:bg-gray-50"
+                trigger={
+                  <>
+                    <PriorityIcon priority={task.priority} />
+                    <span className="text-sm text-gray-700">{PRIORITY_META[task.priority].label}</span>
+                    <CaretDown size={12} className="text-gray-400" />
+                  </>
+                }
+              >
+                {(close) =>
+                  PRIORITY_IDS.map((p) => (
+                    <DropdownItem
+                      key={p}
+                      active={p === task.priority}
+                      onClick={() => {
+                        update.mutate({ priority: p });
+                        close();
+                      }}
+                    >
+                      <PriorityIcon priority={p} />
+                      <span>{PRIORITY_META[p].label}</span>
+                    </DropdownItem>
+                  ))
+                }
+              </Dropdown>
             </div>
 
             <dl className="text-xs text-gray-500 space-y-1 pt-3 border-t border-gray-100">
@@ -255,7 +300,6 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
             </dl>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

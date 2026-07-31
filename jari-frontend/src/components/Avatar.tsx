@@ -16,10 +16,9 @@ function initials(user: Pick<User, 'firstName' | 'lastName' | 'username'>): stri
 interface Props {
   user?: Pick<User, 'id' | 'username' | 'firstName' | 'lastName' | 'avatarUrl'> | null;
   size?: number;
-  title?: string;
 }
 
-export const Avatar: React.FC<Props> = ({ user, size = 24, title }) => {
+export const Avatar: React.FC<Props> = ({ user, size = 24 }) => {
   if (!user) {
     return (
       <div
@@ -35,7 +34,7 @@ export const Avatar: React.FC<Props> = ({ user, size = 24, title }) => {
       <img
         src={user.avatarUrl}
         alt={user.username}
-        title={title ?? user.username}
+        title={user.username}
         className="rounded-full shrink-0 object-cover"
         style={{ width: size, height: size }}
       />
@@ -47,7 +46,7 @@ export const Avatar: React.FC<Props> = ({ user, size = 24, title }) => {
     <div
       className="rounded-full shrink-0 flex items-center justify-center text-white font-medium"
       style={{ width: size, height: size, backgroundColor: color, fontSize: size * 0.4 }}
-      title={title ?? user.username}
+      title={user.username}
     >
       {initials(user)}
     </div>
