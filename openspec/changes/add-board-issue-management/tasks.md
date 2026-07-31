@@ -30,15 +30,20 @@
 
 ## 3. Issue detail
 
-- [ ] 3.1 Add a right-hand side sheet that opens on card click and shows the full issue.
+- [x] 3.1 Add a right-hand side sheet that opens on card click and shows the full issue.
   - A side sheet rather than the reference's modal, so the board stays visible while editing. Deliberate divergence; see design.md.
-- [ ] 3.2 Make summary and description editable in place, saving through `PUT /tasks/{id}`.
-- [ ] 3.3 Make type, priority, and assignee editable via selects; populate assignee from `GET /users`.
+  - `IssueDetail` holds the task in **local state** initialized from the clicked card, not read from the prop on every render. The parent only refetches the board list on a successful mutation - it never hands this panel a fresh `Task` back - so a prop-driven `<select value={task.status}>` would appear to snap back to the old value on every parent re-render even after a successful save. Caught before it shipped by reasoning through the render cycle, not by observing the bug live.
+- [x] 3.2 Make summary and description editable in place, saving through `PUT /tasks/{id}`.
+  - **Found and fixed a real save-loss bug while verifying, not while writing the code.** Fields save on blur; edited the description, clicked Close immediately, and the edit was silently lost - reproduced twice. Relying on blur registering before a button's click handler fires is the wrong tradeoff for something as ordinary as "edit a field, then click Close" - the close button now explicitly flushes any dirty summary/description before calling `onClose`, closing the gap regardless of event-ordering assumptions. Re-verified after the fix: same edit-then-immediate-close sequence now persists, confirmed in Postgres and by a full page reload.
+- [x] 3.3 Make type, priority, and assignee editable via selects; populate assignee from `GET /users`.
   - The list is every user in the system, because project membership does not exist until Phase 3.
-- [ ] 3.4 Make status editable via a select.
-  - This is the accessibility path for moving an issue, not a convenience. It is what makes the drag implementation in section 5 allowed to skip keyboard support. Restrict options to `TODO`, `IN_PROGRESS`, `DONE` — `moveTask` throws on anything else.
-- [ ] 3.5 Show reporter, created, and updated as read-only.
-- [ ] 3.6 Confirm the board reflects an edit without a manual refresh, and that closing without editing changes nothing.
+  - Also confirmed the same TaskDto full-overwrite behaviour project's `updateProject` has: `TaskService.updateTask` sets `assigneeId` and `status` from the request body with no null-fallback (unlike `createTask`'s status default). `api/tasks.ts`'s `updateTask` takes a full `Task`, not `Partial<Task>`, for the same reason `updateProject` does.
+- [x] 3.4 Make status editable via a select.
+  - This is the accessibility path for moving an issue, not a convenience. It is what makes the drag implementation in section 5 allowed to skip keyboard support. Restricted to `TODO`, `IN_PROGRESS`, `DONE` — `moveTask` throws on anything else, and `updateTask` has no such guard of its own.
+  - Verified live: changed a card's status via the select, closed the panel, and the card had moved to the new column with no manual refresh.
+- [x] 3.5 Show reporter, created, and updated as read-only.
+- [x] 3.6 Confirm the board reflects an edit without a manual refresh, and that closing without editing changes nothing.
+  - Both verified live. A status change and an assignee change each showed up on the board immediately after closing the panel. Opening a card and closing it again without touching any field left its row in Postgres byte-for-byte unchanged.
 
 ## 4. Create and delete
 

@@ -10,6 +10,8 @@ export interface Task {
   projectId: number;
   reporterId?: number;
   assigneeId?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface KanbanColumn {

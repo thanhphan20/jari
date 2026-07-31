@@ -5,11 +5,13 @@ import { listProjects } from './api/projects';
 import { listUsers } from './api/users';
 import { getToken, onUnauthorized } from './api/client';
 import { KanbanBoard } from './components/KanbanBoard';
+import { IssueDetail } from './components/IssueDetail';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { ProjectSettings } from './components/ProjectSettings';
 import { CreateProjectDialog } from './components/CreateProjectDialog';
 import type { Project } from './types/project';
+import type { Task } from './types/kanban';
 
 function Board({ projectId }: { projectId: number }) {
   const { data, isLoading, isError, error } = useQuery({
@@ -25,6 +27,8 @@ function Board({ projectId }: { projectId: number }) {
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: listUsers, retry: false });
   const usersById = useMemo(() => new Map(users?.map((u) => [u.id, u])), [users]);
 
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
   if (isError) {
     return (
       <div className="p-6 text-sm text-red-600">
@@ -33,7 +37,12 @@ function Board({ projectId }: { projectId: number }) {
     );
   }
 
-  return <KanbanBoard board={data ?? null} isLoading={isLoading} usersById={usersById} />;
+  return (
+    <>
+      <KanbanBoard board={data ?? null} isLoading={isLoading} usersById={usersById} onSelectTask={setSelectedTask} />
+      {selectedTask && <IssueDetail task={selectedTask} onClose={() => setSelectedTask(null)} />}
+    </>
+  );
 }
 
 function ProjectShell() {
