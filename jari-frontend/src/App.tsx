@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getKanbanBoard } from './api/kanban';
+import { listProjects } from './api/projects';
 import { getToken, onUnauthorized } from './api/client';
 import { KanbanBoard } from './components/KanbanBoard';
 import { Login } from './components/Login';
+import { Sidebar } from './components/Sidebar';
+import { ProjectSettings } from './components/ProjectSettings';
+import { CreateProjectDialog } from './components/CreateProjectDialog';
+import type { Project } from './types/project';
 
-// Hardcoded deliberately. A project picker needs a project list endpoint, a
-// second screen, and selection state, none of which prove anything this does
-// not. Kept as a named constant so the place to change is obvious.
-const PROJECT_ID = 1;
-
-function Board() {
+function Board({ projectId }: { projectId: number }) {
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['kanban', PROJECT_ID],
-    queryFn: () => getKanbanBoard(PROJECT_ID),
+    queryKey: ['kanban', projectId],
+    queryFn: () => getKanbanBoard(projectId),
     // A 401 is handled globally by signing the user out; retrying it would
     // just burn requests before that happens.
     retry: false,
@@ -30,6 +30,41 @@ function Board() {
   return <KanbanBoard board={data ?? null} isLoading={isLoading} />;
 }
 
+function ProjectShell() {
+  const { data: projects, isLoading, refetch } = useQuery({
+    queryKey: ['projects'],
+    queryFn: listProjects,
+  });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  if (isLoading) {
+    return <div className="p-6 text-sm text-gray-500">Loading...</div>;
+  }
+
+  // There are zero rows in the projects table on a fresh clone - the board
+  // only ever "worked" because KanbanService never checks the project
+  // exists. This is the first-run path instead of a hardcoded project id.
+  const project: Project | undefined = projects?.[0];
+  if (!project) {
+    return <CreateProjectDialog onCreated={() => refetch()} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar project={project} onOpenSettings={() => setSettingsOpen(true)} />
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="px-4 py-3 bg-white border-b border-gray-200">
+          <h1 className="text-lg font-bold text-blue-600">Jari</h1>
+        </header>
+        <main className="flex-1 min-h-0">
+          <Board projectId={project.id} />
+        </main>
+      </div>
+      {settingsOpen && <ProjectSettings project={project} onClose={() => setSettingsOpen(false)} />}
+    </div>
+  );
+}
+
 function App() {
   const [authenticated, setAuthenticated] = useState(() => getToken() !== null);
 
@@ -41,16 +76,7 @@ function App() {
     return <Login onAuthenticated={() => setAuthenticated(true)} />;
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="px-4 py-3 bg-white border-b border-gray-200">
-        <h1 className="text-lg font-bold text-blue-600">Jari</h1>
-      </header>
-      <main className="flex-1 min-h-0">
-        <Board />
-      </main>
-    </div>
-  );
+  return <ProjectShell />;
 }
 
 export default App;

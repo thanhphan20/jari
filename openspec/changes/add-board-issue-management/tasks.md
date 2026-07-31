@@ -1,12 +1,16 @@
 ## 1. Project shell
 
-- [ ] 1.1 Add `src/api/projects.ts` (`list`, `get`, `create`, `update`) and `src/api/users.ts` (`list`, `me`) on the shared axios instance.
-- [ ] 1.2 Add `src/types/` entries for `Project` and `User` matching the backend DTOs.
-- [ ] 1.3 Select the project from `GET /projects` instead of the hardcoded `PROJECT_ID` constant in `App.tsx`.
-- [ ] 1.4 Add an empty state that creates a project via `POST /projects` when none exists.
+- [x] 1.1 Add `src/api/projects.ts` (`list`, `get`, `create`, `update`) and `src/api/users.ts` (`list`, `me`) on the shared axios instance.
+  - **Found a footgun while writing `updateProject`**: `ProjectService.updateProject` on the backend overwrites every field from the request body - it is not a merge. `active` is a primitive `boolean` on the entity, so an omitted field deserializes to `false` and silently deactivates the project. Typed `updateProject` to take a full `Project`, not `Partial<Project>`, with a comment explaining why - forces callers to spread the current record.
+- [x] 1.2 Add `src/types/` entries for `Project` and `User` matching the backend DTOs.
+- [x] 1.3 Select the project from `GET /projects` instead of the hardcoded `PROJECT_ID` constant in `App.tsx`.
+- [x] 1.4 Add an empty state that creates a project via `POST /projects` when none exists.
   - There are currently **zero** rows in `projects`. The board only works today because `KanbanService` filters tasks by `projectId` without checking the project exists. This is what makes a fresh clone usable without `curl`.
-- [ ] 1.5 Add the left icon rail and project sidebar showing the project's name and key.
-- [ ] 1.6 Add a project settings form saving through `PUT /projects/{id}`; confirm the sidebar name updates.
+  - Verified live: fresh login showed the empty state (real - the database genuinely has zero projects), created `JARI` / "Jari", and the board rendered immediately with the tasks seeded last phase.
+- [x] 1.5 Add the left icon rail and project sidebar showing the project's name and key.
+  - Combined into one `Sidebar` component rather than two separate pieces. A separate icon rail earns its keep once there is more than one project to switch between or more than one nav destination; with a single project and a single "Board" item, splitting it out is unrequested structure for nothing it would do today.
+- [x] 1.6 Add a project settings form saving through `PUT /projects/{id}`; confirm the sidebar name updates.
+  - Verified live end to end: renamed to "Jari Board", saved, sidebar updated, reloaded the page, still "Jari Board". Confirmed directly in Postgres that `active` came back `t` (true) - proof the full-record-spread fix in 1.1 actually matters, not just defensive comment-writing.
 
 ## 2. Presentation
 
