@@ -133,11 +133,14 @@ function Board({ projectId }: { projectId: number }) {
   );
 }
 
-function ProjectShell() {
+function ProjectShell({ onSignedOut }: { onSignedOut: () => void }) {
   const { data: projects, isLoading, refetch } = useQuery({
     queryKey: ['projects'],
     queryFn: listProjects,
   });
+  // Shares the ['me'] cache entry with Board's own query below - React Query
+  // dedupes by key, so this doesn't double the request.
+  const { data: currentUser } = useQuery({ queryKey: ['me'], queryFn: getCurrentUser, retry: false });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -156,7 +159,7 @@ function ProjectShell() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <NavbarLeft onCreateIssue={() => setCreateOpen(true)} />
+      <NavbarLeft onCreateIssue={() => setCreateOpen(true)} currentUser={currentUser} onSignedOut={onSignedOut} />
       <Sidebar
         project={project}
         collapsed={sidebarCollapsed}
@@ -194,7 +197,7 @@ function App() {
     return <Login onAuthenticated={() => setAuthenticated(true)} />;
   }
 
-  return <ProjectShell />;
+  return <ProjectShell onSignedOut={() => setAuthenticated(false)} />;
 }
 
 export default App;

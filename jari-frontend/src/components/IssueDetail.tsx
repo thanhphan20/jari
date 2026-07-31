@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { updateTask, deleteTask } from '../api/tasks';
 import { listUsers } from '../api/users';
@@ -6,6 +6,8 @@ import type { Task } from '../types/kanban';
 import { IssueTypeIcon } from './icons/IssueTypeIcon';
 import { PriorityIcon } from './icons/PriorityIcon';
 import { Avatar } from './Avatar';
+import { RichTextEditor } from './RichTextEditor';
+import { CommentThread } from './CommentThread';
 
 // KanbanService.STANDARD_COLUMNS is exactly these three; moveTask throws on
 // anything else, and PUT /tasks/{id} has no such guard of its own - sending
@@ -13,6 +15,12 @@ import { Avatar } from './Avatar';
 const STATUSES = ['TODO', 'IN_PROGRESS', 'DONE'];
 const TYPES = [1, 2, 3, 4];
 const PRIORITIES = [1, 2, 3, 4, 5];
+
+const STATUS_PILL: Record<string, string> = {
+  TODO: 'bg-gray-200 text-gray-700',
+  IN_PROGRESS: 'bg-blue-600 text-white',
+  DONE: 'bg-green-600 text-white',
+};
 
 interface Props {
   task: Task;
@@ -29,9 +37,11 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
   // register even though the request succeeded.
   const [task, setTask] = useState(initialTask);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: listUsers });
+  const usersById = useMemo(() => new Map((users ?? []).map((u) => [u.id, u])), [users]);
 
   const invalidateBoard = () => queryClient.invalidateQueries({ queryKey: ['kanban', task.projectId] });
 
@@ -73,7 +83,9 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-20 p-4" onClick={handleClose}>
       <div
-        className="w-full max-w-3xl max-h-[85vh] bg-white rounded-lg shadow-xl flex flex-col"
+        className={`w-full bg-white rounded-lg shadow-xl flex flex-col ${
+          fullscreen ? 'max-w-none h-full' : 'max-w-3xl max-h-[85vh]'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100">
@@ -101,6 +113,14 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
                 Delete
               </button>
             )}
+            <button
+              onClick={() => setFullscreen((f) => !f)}
+              className="text-gray-400 hover:text-gray-700"
+              aria-label={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            >
+              {fullscreen ? '⤡' : '⤢'}
+            </button>
             <button onClick={handleClose} className="text-gray-400 hover:text-gray-700" aria-label="Close">
               ✕
             </button>
@@ -119,24 +139,25 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
 
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">Description</div>
-              <textarea
-                className="w-full text-sm border border-gray-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                rows={8}
-                placeholder="Add a description..."
-                value={task.description ?? ''}
-                onChange={(e) => setTask({ ...task, description: e.target.value })}
-                onBlur={() => task.description !== initialTask.description && update.mutate({ description: task.description })}
+              <RichTextEditor
+                content={task.description ?? ''}
+                onBlur={(html) => {
+                  setTask((t) => ({ ...t, description: html }));
+                  if (html !== (task.description ?? '')) update.mutate({ description: html });
+                }}
               />
             </div>
 
             {update.isError && <div className="text-sm text-red-600">Could not save the change.</div>}
+
+            <CommentThread taskId={task.id} usersById={usersById} />
           </div>
 
           <div className="col-span-1 space-y-4">
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">Status</div>
               <select
-                className="w-full text-sm border border-gray-200 rounded p-1.5"
+                className={`w-full text-sm rounded p-1.5 font-medium border-none ${STATUS_PILL[task.status] ?? 'bg-gray-200 text-gray-700'}`}
                 value={task.status}
                 onChange={(e) => update.mutate({ status: e.target.value })}
               >
