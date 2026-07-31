@@ -248,7 +248,28 @@ Each microservice uses its own Postgres database, created by `postgres/init-db.s
 - `jari_task` - Task Service
 - `jari_notification` - Notification Service
 
-A dedicated `db-init` service runs `postgres/init-db.sql` on every `docker compose up`, not just against an empty volume — so a database added to the script later gets created even against a volume that already exists. Application services wait for `db-init` to complete successfully before starting. `docker compose down -v` remains the way to wipe all data and start over.
+`postgres/init-db.sql` is mounted into the Postgres image's `docker-entrypoint-initdb.d`, which runs it **only when the data volume is first initialised**. The consequence to know about: adding a database to that script later will *not* create it against a volume that already exists. Use `docker compose down -v` to wipe and re-run the script from scratch.
+
+### Connecting with a database client
+
+The container publishes Postgres on host port **15432**, not 5432:
+
+| Setting | Value |
+|---|---|
+| Host | `localhost` |
+| Port | `15432` |
+| Database | `jari_user`, `jari_project`, `jari_task`, or `jari_notification` |
+| User / password | `postgres` / `postgres` |
+
+The non-standard port is deliberate. If something else on the machine already holds 5432 — a native Postgres install, most commonly — Docker **does not fail loudly**: the container starts with the port simply unpublished, and a client pointed at `localhost:5432` silently reaches the *other* server instead. That presents as an authentication failure or as a server with no `jari_*` databases, neither of which points at the real cause. Publishing on 15432 sidesteps the collision entirely.
+
+To check whether a mapping is actually live rather than merely requested, compare what was asked for against what got bound:
+
+```bash
+docker inspect jari-postgres --format '{{json .NetworkSettings.Ports}}'
+```
+
+An empty array for `5432/tcp` means the bind failed. The services themselves are unaffected either way — they reach the database as `postgres:5432` over the Docker network, which is independent of any host mapping.
 
 ## Known Limitations
 

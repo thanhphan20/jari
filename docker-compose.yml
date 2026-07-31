@@ -7,7 +7,14 @@ services:
       - 'POSTGRES_PASSWORD=postgres'
       - 'POSTGRES_DB=postgres'
     ports:
-      - '5432:5432'
+      # Published on 15432, not 5432, because a native Postgres install already
+      # holds 5432 on the development machine. Docker does not fail loudly when
+      # it cannot bind - the container starts with the port simply unpublished,
+      # so a database client connecting to localhost:5432 silently reaches the
+      # other server instead of this one.
+      # Services are unaffected: they reach this container as postgres:5432 over
+      # the jari-network, which is independent of the host mapping.
+      - '15432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./postgres/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -20,29 +27,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
-
-  db-init:
-    image: 'postgres:18'
-    container_name: jari-db-init
-    entrypoint: ['sh', '-c']
-    command:
-      - |
-        for i in $$(seq 1 10); do
-          psql -h postgres -U postgres -f /init-db.sql && exit 0
-          echo "db-init: postgres not ready yet (attempt $$i/10), retrying in 3s..."
-          sleep 3
-        done
-        exit 1
-    environment:
-      - PGPASSWORD=postgres
-    volumes:
-      - ./postgres/init-db.sql:/init-db.sql:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - jari-network
-    restart: 'no'
 
   rabbitmq:
     image: 'rabbitmq:3-management'
@@ -121,8 +105,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      db-init:
-        condition: service_completed_successfully
       eureka-discovery:
         condition: service_healthy
     networks:
@@ -146,8 +128,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      db-init:
-        condition: service_completed_successfully
       eureka-discovery:
         condition: service_healthy
     networks:
@@ -171,8 +151,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      db-init:
-        condition: service_completed_successfully
       eureka-discovery:
         condition: service_healthy
     networks:
@@ -196,8 +174,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      db-init:
-        condition: service_completed_successfully
       eureka-discovery:
         condition: service_healthy
     networks:
