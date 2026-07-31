@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getKanbanBoard } from './api/kanban';
 import { listProjects } from './api/projects';
+import { listUsers } from './api/users';
 import { getToken, onUnauthorized } from './api/client';
 import { KanbanBoard } from './components/KanbanBoard';
 import { Login } from './components/Login';
@@ -19,6 +20,11 @@ function Board({ projectId }: { projectId: number }) {
     retry: false,
   });
 
+  // The assignee list is every user in the system - project membership does
+  // not exist until Phase 3, so there is no smaller set to draw from yet.
+  const { data: users } = useQuery({ queryKey: ['users'], queryFn: listUsers, retry: false });
+  const usersById = useMemo(() => new Map(users?.map((u) => [u.id, u])), [users]);
+
   if (isError) {
     return (
       <div className="p-6 text-sm text-red-600">
@@ -27,7 +33,7 @@ function Board({ projectId }: { projectId: number }) {
     );
   }
 
-  return <KanbanBoard board={data ?? null} isLoading={isLoading} />;
+  return <KanbanBoard board={data ?? null} isLoading={isLoading} usersById={usersById} />;
 }
 
 function ProjectShell() {

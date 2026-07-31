@@ -1,12 +1,17 @@
-import React from 'react';
-import type { KanbanBoard as KanbanBoardType } from '../types/kanban';
+import type { KanbanBoard as KanbanBoardType, Task } from '../types/kanban';
+import type { User } from '../types/user';
+import { IssueTypeIcon } from './icons/IssueTypeIcon';
+import { PriorityIcon } from './icons/PriorityIcon';
+import { Avatar } from './Avatar';
 
 interface Props {
   board: KanbanBoardType | null;
   isLoading: boolean;
+  usersById?: Map<number, User>;
+  onSelectTask?: (task: Task) => void;
 }
 
-export const KanbanBoard: React.FC<Props> = ({ board, isLoading }) => {
+export const KanbanBoard: React.FC<Props> = ({ board, isLoading, usersById, onSelectTask }) => {
   if (isLoading) {
     return <div>Loading board...</div>;
   }
@@ -31,11 +36,21 @@ export const KanbanBoard: React.FC<Props> = ({ board, isLoading }) => {
               <div className="text-sm text-gray-400 italic px-1">No tasks</div>
             ) : (
               column.tasks.map((task) => (
-                <div key={task.id} className="p-3 bg-white rounded shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow">
-                  <div className="text-sm text-gray-800 font-medium mb-1">{task.summary}</div>
-                  <div className="flex justify-between items-center mt-2">
-                     <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{task.key}</span>
-                     {/* Priority icon could go here */}
+                <div
+                  key={task.id}
+                  onClick={() => onSelectTask?.(task)}
+                  className="p-3 bg-white rounded shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start gap-1.5 text-sm text-gray-800 font-medium mb-2">
+                    <IssueTypeIcon type={task.type} className="mt-0.5 shrink-0" />
+                    <span>{task.summary}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{task.key}</span>
+                      <PriorityIcon priority={task.priority} />
+                    </div>
+                    <Avatar user={task.assigneeId ? usersById?.get(task.assigneeId) : undefined} size={22} />
                   </div>
                 </div>
               ))

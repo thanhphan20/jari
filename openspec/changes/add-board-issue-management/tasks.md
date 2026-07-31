@@ -14,14 +14,19 @@
 
 ## 2. Presentation
 
-- [ ] 2.1 Add issue-type icons for Task, Bug, Story, Epic (`type` 1-4) as inline SVG components.
-- [ ] 2.2 Add priority icons for the five levels (`priority` 1-5) as inline SVG components.
+- [x] 2.1 Add issue-type icons for Task, Bug, Story, Epic (`type` 1-4) as inline SVG components.
+  - `IssueTypeIcon`: a coloured rounded square (blue/red/green/purple) with an original glyph per type - checkmark, bug, bookmark, bolt.
+- [x] 2.2 Add priority icons for the five levels (`priority` 1-5) as inline SVG components.
   - No icon dependency. `lucide-react` was removed last change for being unused; re-adding it for ~10 glyphs would reverse that, and Jira's marks are specific enough that generic icons would look approximately right rather than right.
-- [ ] 2.3 Add an `Avatar` component: image when `avatarUrl` is present, initials otherwise, on a colour derived deterministically from the user id.
+  - `PriorityIcon`: chevron direction and count (single/double, up/down) plus colour for Medium's equals sign, so magnitude and urgency both read at card size.
+- [x] 2.3 Add an `Avatar` component: image when `avatarUrl` is present, initials otherwise, on a colour derived deterministically from the user id.
   - Deterministic, not random or index-based, so a person keeps one colour across cards and reloads. No seeded user has an `avatarUrl`, so the fallback is the common path, not the edge case.
-- [ ] 2.4 Rework the card to show type icon, summary, key, priority icon, and assignee avatar.
-- [ ] 2.5 Add `order` to the frontend `Task` type.
+  - Also handles the unassigned case (dashed-outline circle) and is reused by the card now, the detail panel and create dialog later.
+- [x] 2.4 Rework the card to show type icon, summary, key, priority icon, and assignee avatar.
+  - `KanbanBoard` now takes a `usersById` map so it can resolve `assigneeId` to an `Avatar` without a lookup per card. Verified live for both branches: unassigned (dashed circle) and assigned (initials "US" for a user with no first/last name) - and for a non-default type/priority pairing (Bug, Highest) via a temporary `PUT`, then reverted so the seed data matches what earlier phases left it as.
+- [x] 2.5 Add `order` to the frontend `Task` type.
   - Recorded as owed by `add-kanban-browser-demo` task 6.2: `TaskDto` returns it, the frontend type omits it, and it becomes load-bearing the moment drag-and-drop needs an index.
+  - Also added `projectId` and `reporterId`, which the type was missing entirely, not just `order` - both are needed by the detail panel and create dialog in the next two sections.
 
 ## 3. Issue detail
 
