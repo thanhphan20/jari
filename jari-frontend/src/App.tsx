@@ -4,7 +4,7 @@ import { getKanbanBoard, moveTask } from './api/kanban';
 import { listProjects } from './api/projects';
 import { listUsers, getCurrentUser } from './api/users';
 import { getToken, onUnauthorized } from './api/client';
-import { KanbanBoard, type MoveArgs } from './components/KanbanBoard';
+import { KanbanBoard, BoardSkeleton, type MoveArgs } from './components/KanbanBoard';
 import { IssueDetail } from './components/IssueDetail';
 import { Login } from './components/Login';
 import { Sidebar, SidebarToggle } from './components/Sidebar';
@@ -142,6 +142,26 @@ function Board({ projectId }: { projectId: number }) {
   );
 }
 
+function AppShellSkeleton() {
+  return (
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
+      <div className="w-14 shrink-0 bg-[#0c2a52]" />
+      <div className="w-56 shrink-0 bg-white border-r border-gray-200 p-4 space-y-2">
+        <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+        <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+      </div>
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="px-4 py-3 bg-white border-b border-gray-200">
+          <div className="h-4 w-56 bg-gray-200 rounded animate-pulse" />
+        </header>
+        <main className="flex-1 min-h-0">
+          <BoardSkeleton />
+        </main>
+      </div>
+    </div>
+  );
+}
+
 function ProjectShell({ onSignedOut }: { onSignedOut: () => void }) {
   const { data: projects, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['projects'],
@@ -156,7 +176,7 @@ function ProjectShell({ onSignedOut }: { onSignedOut: () => void }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   if (isLoading) {
-    return <div className="p-6 text-sm text-gray-500">Loading...</div>;
+    return <AppShellSkeleton />;
   }
 
   // Checked before the empty-project branch below, not after: without this,
@@ -181,7 +201,7 @@ function ProjectShell({ onSignedOut }: { onSignedOut: () => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
       <NavbarLeft onCreateIssue={() => setCreateOpen(true)} currentUser={currentUser} onSignedOut={onSignedOut} />
       <Sidebar
         project={project}
@@ -190,14 +210,17 @@ function ProjectShell({ onSignedOut }: { onSignedOut: () => void }) {
       />
       <SidebarToggle collapsed={sidebarCollapsed} onClick={() => setSidebarCollapsed((c) => !c)} />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between">
-          <Breadcrumb projectName={project.name} />
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Create issue
-          </button>
+        <header className="px-4 pt-3 pb-2 bg-white border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <Breadcrumb projectName={project.name} />
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Create issue
+            </button>
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 mt-1">Kanban board</h1>
         </header>
         <main className="flex-1 min-h-0">
           <Board projectId={project.id} />

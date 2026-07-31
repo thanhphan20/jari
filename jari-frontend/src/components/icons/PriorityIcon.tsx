@@ -1,14 +1,7 @@
 // Task.priority: 1=Lowest, 2=Low, 3=Medium, 4=High, 5=Highest (see Task.java).
 // Arrow direction + count encodes magnitude, colour encodes urgency - the two
 // together are readable at card size without a label.
-
-const PRIORITY_META: Record<number, { label: string; color: string }> = {
-  1: { label: 'Lowest', color: '#2563eb' },
-  2: { label: 'Low', color: '#16a34a' },
-  3: { label: 'Medium', color: '#ca8a04' },
-  4: { label: 'High', color: '#ea580c' },
-  5: { label: 'Highest', color: '#dc2626' },
-};
+import { PRIORITY_META } from '../../types/kanban';
 
 function Arrows({ priority }: { priority: number }) {
   const up = priority >= 4;

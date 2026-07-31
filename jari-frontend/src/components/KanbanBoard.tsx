@@ -39,6 +39,31 @@ function dropIndexFor(container: HTMLElement, clientY: number): number {
   return cards.length;
 }
 
+export function BoardSkeleton() {
+  return (
+    <div className="flex h-full gap-4 p-4 overflow-x-auto">
+      {[0, 1, 2].map((col) => (
+        <div key={col} className="shrink-0 w-80 bg-gray-100 rounded-lg flex flex-col">
+          <div className="px-3 py-2.5 border-b border-gray-200">
+            <div className="h-3 w-20 bg-gray-300 rounded animate-pulse" />
+          </div>
+          <div className="flex-1 p-2 space-y-2">
+            {Array.from({ length: 3 - (col % 2) }).map((_, i) => (
+              <div key={i} className="p-3 bg-white rounded shadow-sm border border-gray-200 space-y-2">
+                <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse" />
+                <div className="flex justify-between items-center">
+                  <div className="h-4 w-12 bg-gray-100 rounded animate-pulse" />
+                  <div className="h-5 w-5 bg-gray-200 rounded-full animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export const KanbanBoard: React.FC<Props> = ({ board, isLoading, usersById, onSelectTask, onMove, dragDisabled }) => {
   // Tracks where the drag started, not just which task - the column and
   // index at drag-start, so onDrop can correct for the array shift that
@@ -48,7 +73,7 @@ export const KanbanBoard: React.FC<Props> = ({ board, isLoading, usersById, onSe
   const [dragOver, setDragOver] = useState<{ columnId: string; index: number } | null>(null);
 
   if (isLoading) {
-    return <div>Loading board...</div>;
+    return <BoardSkeleton />;
   }
 
   if (!board) {
@@ -99,8 +124,9 @@ export const KanbanBoard: React.FC<Props> = ({ board, isLoading, usersById, onSe
             setDragOver(null);
           }}
         >
-          <div className="p-3 font-semibold text-gray-700 border-b border-gray-200">
-            {column.title} <span className="text-sm text-gray-400 ml-2">{column.tasks.length}</span>
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-200">
+            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{column.title}</span>
+            <span className="text-xs font-medium text-gray-400">{column.tasks.length}</span>
           </div>
           <div className="flex-1 p-2 space-y-2 overflow-y-auto min-h-[100px]">
             {column.tasks.length === 0 && dragOver?.columnId !== column.id ? (

@@ -1,11 +1,6 @@
 import { api } from './client';
 import type { Task } from '../types/kanban';
 
-export const getTask = async (id: number): Promise<Task> => {
-  const response = await api.get(`/tasks/${id}`);
-  return response.data.data;
-};
-
 export const listTasksByProject = async (projectId: number): Promise<Task[]> => {
   const response = await api.get(`/tasks/project/${projectId}`);
   return response.data.data;

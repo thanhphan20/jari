@@ -3,10 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createTask, listTasksByProject } from '../api/tasks';
 import { listUsers, getCurrentUser } from '../api/users';
 import type { Project } from '../types/project';
-
-const TYPES = [1, 2, 3, 4];
-const TYPE_LABELS: Record<number, string> = { 1: 'Task', 2: 'Bug', 3: 'Story', 4: 'Epic' };
-const PRIORITIES = [1, 2, 3, 4, 5];
+import { TYPE_META, PRIORITY_META, TYPE_IDS, PRIORITY_IDS } from '../types/kanban';
+import { Modal } from './Modal';
 
 interface Props {
   project: Project;
@@ -73,8 +71,8 @@ export const CreateIssueDialog: React.FC<Props> = ({ project, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-20" onClick={onClose}>
-      <form onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()} className="w-[420px] bg-white p-6 rounded-lg shadow-lg">
+    <Modal onClose={onClose} panelClassName="w-[420px] bg-white p-6 rounded-lg shadow-lg">
+      <form onSubmit={handleSubmit}>
         <h2 className="text-lg font-semibold mb-4">Create issue</h2>
 
         <label className="block text-sm text-gray-700 mb-1" htmlFor="ci-summary">
@@ -103,13 +101,13 @@ export const CreateIssueDialog: React.FC<Props> = ({ project, onClose }) => {
           <div>
             <label className="block text-sm text-gray-700 mb-1" htmlFor="ci-type">Type</label>
             <select id="ci-type" className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" value={type} onChange={(e) => setType(Number(e.target.value))}>
-              {TYPES.map((t) => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
+              {TYPE_IDS.map((t) => <option key={t} value={t}>{TYPE_META[t].label}</option>)}
             </select>
           </div>
           <div>
             <label className="block text-sm text-gray-700 mb-1" htmlFor="ci-priority">Priority</label>
             <select id="ci-priority" className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm" value={priority} onChange={(e) => setPriority(Number(e.target.value))}>
-              {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+              {PRIORITY_IDS.map((p) => <option key={p} value={p}>{PRIORITY_META[p].label}</option>)}
             </select>
           </div>
           <div>
@@ -141,6 +139,6 @@ export const CreateIssueDialog: React.FC<Props> = ({ project, onClose }) => {
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 };

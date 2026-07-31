@@ -1,13 +1,7 @@
 // Task.type: 1=Task, 2=Bug, 3=Story, 4=Epic (see Task.java).
 // Each is a coloured rounded square with a distinct glyph, so type is legible
 // on a card without opening it - the whole point per design.md.
-
-const TYPE_META: Record<number, { label: string; color: string }> = {
-  1: { label: 'Task', color: '#2563eb' },
-  2: { label: 'Bug', color: '#dc2626' },
-  3: { label: 'Story', color: '#16a34a' },
-  4: { label: 'Epic', color: '#7c3aed' },
-};
+import { TYPE_META } from '../../types/kanban';
 
 function Glyph({ type }: { type: number }) {
   switch (type) {
