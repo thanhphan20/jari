@@ -4,8 +4,8 @@
   - `1.19.7` is the version Spring Boot 3.2.4 resolves; pin it explicitly rather than overriding.
 - [ ] 1.2 Configure the Failsafe plugin for `*IT` classes, and exclude `*IT` from Surefire so it does not run them twice.
 - [ ] 1.3 Verify `mvn test` still succeeds with no container runtime available, and that `mvn verify` invokes the integration phase.
-- [ ] 1.4 Settle the JVM-timezone question and record the decision.
-  - Postgres 18 rejects legacy timezone aliases the JDBC driver may send (`Asia/Saigon` fails, `Asia/Ho_Chi_Minh` succeeds), surfacing as `FATAL: invalid value for parameter "TimeZone"`. Decide between pinning a timezone for Surefire/Failsafe (suite is machine-independent) and treating it as a per-machine environment fix (suite is not reproducible for the next developer). Design recommends pinning.
+- [ ] 1.4 Pin a JVM timezone for Surefire/Failsafe and record the decision.
+  - Postgres 18 rejects legacy timezone aliases the JDBC driver may send (`Asia/Saigon` fails, `Asia/Ho_Chi_Minh` succeeds), surfacing as `FATAL: invalid value for parameter "TimeZone"`. The suite must produce the same result on a machine with a different locale or timezone than the author's, so a per-machine environment fix is not an acceptable outcome — only a pinned/normalized timezone is.
 
 ## 2. Identity service: harness and the migration check
 
@@ -22,6 +22,7 @@
 - [ ] 3.1 Test registration: a user row is persisted and the stored password is a hash rather than the submitted plaintext.
 - [ ] 3.2 Test authentication: a token is issued and its `userId` claim equals the persisted primary key.
 - [ ] 3.3 Test invalid credentials: HTTP 401 and no token issued.
+  - Depends on a fix to `AuthService.login`: it currently throws a plain `RuntimeException` on bad credentials, which `GlobalExceptionHandler`'s catch-all maps to HTTP 500, not 401. Land that fix first, or this test (and `mvn verify`) fails on arrival.
 - [ ] 3.4 Test self-lookup with authenticated identity: returns the registered user.
 - [ ] 3.5 Test self-lookup without identity: HTTP 401.
 - [ ] 3.6 Confirm the provisioned container is removed after the run and that two consecutive runs both pass.
