@@ -71,37 +71,68 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
   const reporter = users?.find((u) => u.id === task.reporterId);
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black/20 z-10" onClick={handleClose} />
-      <div className="fixed top-0 right-0 h-full w-[420px] bg-white shadow-lg z-20 flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <span className="text-xs text-gray-500">{task.key}</span>
-          <button onClick={handleClose} className="text-gray-400 hover:text-gray-700" aria-label="Close">
-            ✕
-          </button>
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-20 p-4" onClick={handleClose}>
+      <div
+        className="w-full max-w-3xl max-h-[85vh] bg-white rounded-lg shadow-xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <IssueTypeIcon type={task.type} />
+            <span className="text-sm text-gray-500">{task.key}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {confirmingDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Delete this issue?</span>
+                <button onClick={() => setConfirmingDelete(false)} className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-50 rounded">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => remove.mutate()}
+                  disabled={remove.isPending}
+                  className="px-2 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                >
+                  {remove.isPending ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmingDelete(true)} className="text-sm text-red-600 hover:underline">
+                Delete
+              </button>
+            )}
+            <button onClick={handleClose} className="text-gray-400 hover:text-gray-700" aria-label="Close">
+              ✕
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <textarea
-            className="w-full text-lg font-semibold border-none resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 rounded p-1 -m-1"
-            value={task.summary}
-            rows={2}
-            onChange={(e) => setTask({ ...task, summary: e.target.value })}
-            onBlur={() => task.summary !== initialTask.summary && update.mutate({ summary: task.summary })}
-          />
-
-          <div>
-            <div className="text-xs font-medium text-gray-500 mb-1">Description</div>
+        <div className="flex-1 overflow-y-auto grid grid-cols-3 gap-6 p-6">
+          <div className="col-span-2 space-y-4">
             <textarea
-              className="w-full text-sm border border-gray-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
-              rows={4}
-              value={task.description ?? ''}
-              onChange={(e) => setTask({ ...task, description: e.target.value })}
-              onBlur={() => task.description !== initialTask.description && update.mutate({ description: task.description })}
+              className="w-full text-xl font-semibold border-none resize-none focus:outline-none focus:ring-1 focus:ring-blue-400 rounded p-1 -m-1"
+              value={task.summary}
+              rows={2}
+              onChange={(e) => setTask({ ...task, summary: e.target.value })}
+              onBlur={() => task.summary !== initialTask.summary && update.mutate({ summary: task.summary })}
             />
+
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">Description</div>
+              <textarea
+                className="w-full text-sm border border-gray-200 rounded p-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                rows={8}
+                placeholder="Add a description..."
+                value={task.description ?? ''}
+                onChange={(e) => setTask({ ...task, description: e.target.value })}
+                onBlur={() => task.description !== initialTask.description && update.mutate({ description: task.description })}
+              />
+            </div>
+
+            {update.isError && <div className="text-sm text-red-600">Could not save the change.</div>}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-1 space-y-4">
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">Status</div>
               <select
@@ -116,33 +147,11 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
             </div>
 
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Type</div>
-              <select
-                className="w-full text-sm border border-gray-200 rounded p-1.5"
-                value={task.type}
-                onChange={(e) => update.mutate({ type: Number(e.target.value) })}
-              >
-                {TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Priority</div>
-              <select
-                className="w-full text-sm border border-gray-200 rounded p-1.5"
-                value={task.priority}
-                onChange={(e) => update.mutate({ priority: Number(e.target.value) })}
-              >
-                {PRIORITIES.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
               <div className="text-xs font-medium text-gray-500 mb-1">Assignee</div>
+              <div className="flex items-center gap-2 mb-1">
+                <Avatar user={assignee} size={22} />
+                <span className="text-sm text-gray-700">{assignee ? assignee.username : 'Unassigned'}</span>
+              </div>
               <select
                 className="w-full text-sm border border-gray-200 rounded p-1.5"
                 value={task.assigneeId ?? ''}
@@ -154,46 +163,53 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
                 ))}
               </select>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-            <IssueTypeIcon type={task.type} />
-            <PriorityIcon priority={task.priority} />
-            <Avatar user={assignee} size={22} />
-            <span className="text-xs text-gray-500">{assignee ? assignee.username : 'Unassigned'}</span>
-          </div>
-
-          <dl className="text-xs text-gray-500 space-y-1 pt-2 border-t border-gray-100">
-            <div className="flex justify-between"><dt>Reporter</dt><dd>{reporter?.username ?? '-'}</dd></div>
-            <div className="flex justify-between"><dt>Created</dt><dd>{task.createdAt ? new Date(task.createdAt).toLocaleString() : '-'}</dd></div>
-            <div className="flex justify-between"><dt>Updated</dt><dd>{task.updatedAt ? new Date(task.updatedAt).toLocaleString() : '-'}</dd></div>
-          </dl>
-
-          {update.isError && <div className="text-sm text-red-600">Could not save the change.</div>}
-        </div>
-
-        <div className="p-4 border-t border-gray-200">
-          {confirmingDelete ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-700 flex-1">Delete this issue?</span>
-              <button onClick={() => setConfirmingDelete(false)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 rounded">
-                Cancel
-              </button>
-              <button
-                onClick={() => remove.mutate()}
-                disabled={remove.isPending}
-                className="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
-              >
-                {remove.isPending ? 'Deleting...' : 'Delete'}
-              </button>
+            <div>
+              <div className="text-xs font-medium text-gray-500 mb-1">Reporter</div>
+              <div className="flex items-center gap-2">
+                <Avatar user={reporter} size={22} />
+                <span className="text-sm text-gray-700">{reporter?.username ?? '-'}</span>
+              </div>
             </div>
-          ) : (
-            <button onClick={() => setConfirmingDelete(true)} className="text-sm text-red-600 hover:underline">
-              Delete issue
-            </button>
-          )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs font-medium text-gray-500 mb-1">Type</div>
+                <select
+                  className="w-full text-sm border border-gray-200 rounded p-1.5"
+                  value={task.type}
+                  onChange={(e) => update.mutate({ type: Number(e.target.value) })}
+                >
+                  {TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="text-xs font-medium text-gray-500 mb-1">Priority</div>
+                <div className="flex items-center gap-1">
+                  <PriorityIcon priority={task.priority} />
+                  <select
+                    className="w-full text-sm border border-gray-200 rounded p-1.5"
+                    value={task.priority}
+                    onChange={(e) => update.mutate({ priority: Number(e.target.value) })}
+                  >
+                    {PRIORITIES.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <dl className="text-xs text-gray-500 space-y-1 pt-3 border-t border-gray-100">
+              <div className="flex justify-between"><dt>Created</dt><dd>{task.createdAt ? new Date(task.createdAt).toLocaleString() : '-'}</dd></div>
+              <div className="flex justify-between"><dt>Updated</dt><dd>{task.updatedAt ? new Date(task.updatedAt).toLocaleString() : '-'}</dd></div>
+            </dl>
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };

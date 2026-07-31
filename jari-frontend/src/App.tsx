@@ -7,7 +7,9 @@ import { getToken, onUnauthorized } from './api/client';
 import { KanbanBoard, type MoveArgs } from './components/KanbanBoard';
 import { IssueDetail } from './components/IssueDetail';
 import { Login } from './components/Login';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar, SidebarToggle } from './components/Sidebar';
+import { NavbarLeft } from './components/NavbarLeft';
+import { Breadcrumb } from './components/Breadcrumb';
 import { ProjectSettings } from './components/ProjectSettings';
 import { CreateProjectDialog } from './components/CreateProjectDialog';
 import { CreateIssueDialog } from './components/CreateIssueDialog';
@@ -138,6 +140,7 @@ function ProjectShell() {
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   if (isLoading) {
     return <div className="p-6 text-sm text-gray-500">Loading...</div>;
@@ -153,10 +156,16 @@ function ProjectShell() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar project={project} onOpenSettings={() => setSettingsOpen(true)} />
+      <NavbarLeft onCreateIssue={() => setCreateOpen(true)} />
+      <Sidebar
+        project={project}
+        collapsed={sidebarCollapsed}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+      <SidebarToggle collapsed={sidebarCollapsed} onClick={() => setSidebarCollapsed((c) => !c)} />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="px-4 py-3 bg-white border-b border-gray-200 flex items-center justify-between">
-          <h1 className="text-lg font-bold text-blue-600">Jari</h1>
+          <Breadcrumb projectName={project.name} />
           <button
             onClick={() => setCreateOpen(true)}
             className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
