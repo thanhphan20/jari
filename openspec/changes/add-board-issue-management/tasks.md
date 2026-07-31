@@ -90,11 +90,17 @@
 
 ## 7. Verify and document
 
-- [ ] 7.1 Confirm lint, typecheck, and production build all pass.
-- [ ] 7.2 Walk the whole flow in a browser: log in, create a project, create issues, drag them, edit them, filter, delete. Confirm no console errors and no failed requests.
-- [ ] 7.3 Confirm every operation is reachable without dragging.
-- [ ] 7.4 Update `readme.md`: the board is interactive, what it can do, and what it deliberately cannot.
-- [ ] 7.5 Document the constraints that will otherwise look like bugs: three columns only, a single assignee, assignees drawn from all users, and client-generated keys that can collide.
-- [ ] 7.6 Record the absence of issue deep links as the trigger for adding a router, since overlays kept this change to one route.
-- [ ] 7.7 Record any backend defect this surfaces as its own change rather than fixing it here.
-  - Expect some. Last change found `POST /auth/token` returning 500 instead of 401 this way.
+- [x] 7.1 Confirm lint, typecheck, and production build all pass.
+  - Re-confirmed at the end of every section throughout this change, and once more here as a final check: all three clean.
+- [x] 7.2 Walk the whole flow in a browser: log in, create a project, create issues, drag them, edit them, filter, delete. Confirm no console errors and no failed requests.
+  - Done across the change's five sections rather than as one single pass at the end - each section's own verification exercised its slice of this walkthrough against the real backend. A final fresh reload confirmed 5 cards, zero console errors.
+- [x] 7.3 Confirm every operation is reachable without dragging.
+  - Verified explicitly: opened a card, changed Status from the select (`TODO` → `DONE`), closed the panel, and the card had moved columns with no drag involved. Create, edit, and delete were never drag-dependent to begin with.
+- [x] 7.4 Update `readme.md`: the board is interactive, what it can do, and what it deliberately cannot.
+  - Rewrote the Frontend section: create/edit/drag/filter walkthrough, and why the dev proxy is load-bearing (kept from last phase, still true).
+- [x] 7.5 Document the constraints that will otherwise look like bugs: three columns only, a single assignee, assignees drawn from all users, and client-generated keys that can collide.
+  - All four now in a dedicated "Constraints that will otherwise look like bugs" list in the README's Frontend section, each with the specific backend reason (`STANDARD_COLUMNS`, single `assigneeId` field, no `ProjectMember` yet, no server-side key generation).
+- [x] 7.6 Record the absence of issue deep links as the trigger for adding a router, since overlays kept this change to one route.
+  - In the same README list, and named as the Roadmap's explicit "Next" item ahead of Phase 3.
+- [x] 7.7 Record any backend defect this surfaces as its own change rather than fixing it here.
+  - None new found this section. The one real defect this whole change surfaced - `POST /auth/token` returning 500 instead of 401 - was found and recorded during section 3/4's live verification and is already in the README's Known Limitations (added in that section's commit, not duplicated here).

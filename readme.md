@@ -102,7 +102,7 @@ Start services in dependency order: `jari-discovery` → `jari-gateway` → `jar
 
 ### Frontend
 
-`jari-frontend/` is a React + Vite client that logs in against the identity service and renders a project's Kanban board from live backend data. Bring the stack up first — the frontend has nothing to show without it.
+`jari-frontend/` is a React + Vite client: log in against the identity service, then manage a project's Kanban board against live backend data. Bring the stack up first — the frontend has nothing to show without it.
 
 ```bash
 cd jari-frontend
@@ -110,21 +110,27 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:5173 and sign in with the seeded `admin` / `admin123`.
+Open http://localhost:5173 and sign in with the seeded `admin` / `admin123` (or `user` / `user123`).
 
-The board is empty on a fresh database: three columns (`Todo`, `In Progress`, `Done`) and no cards. `KanbanService` returns those three columns unconditionally, so empty columns are the correct first result rather than a failure. To give it something to show, create a few tasks — reusing the token from step 3 of the smoke test:
+**On a fresh database** there are zero projects, so you land on a "Create your first project" screen instead of a board — `POST /projects` creates one and you're straight into it. From there the board is a working issue tracker, not a read-only view:
 
-```bash
-curl -X POST http://localhost:8080/api/tasks \
-  -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
-  -d '{"key":"JARI-1","summary":"Render the board","status":"IN_PROGRESS","projectId":1,"priority":3,"type":1}'
-```
-
-`projectId` must be `1` — the board's project id is a constant in `src/App.tsx` until there is a project picker. Valid statuses are `TODO`, `IN_PROGRESS`, and `DONE`.
+- **Create an issue** with the "Create issue" button — summary, description, type, priority, assignee.
+- **Open a card** to edit it in a side panel: summary and description save on blur (or immediately if you close right after editing), status/type/priority/assignee are selects, and delete has a confirmation step.
+- **Drag a card** between or within columns to change its status or reorder it — this updates immediately and reconciles with the server in the background; if the move fails it reverts and says so.
+- **Move a card without dragging**: open it and change Status in the select. Every operation the board supports has a non-drag path, so nothing requires a pointer.
+- **Filter the board** by text, by clicking an assignee's avatar, by issue type, or "only my issues" — all client-side over the board already fetched, so it's instant and touches no data.
 
 **How browser requests reach the gateway.** The Vite dev server proxies `/api` and `/auth` to `http://localhost:8080`, so the browser makes same-origin requests. This is load-bearing, not a convenience: a cross-origin call would be preflighted, and a CORS preflight carries no `Authorization` header, so the gateway's `AuthenticationFilter` rejects it with 401 before the real request is ever sent. Same-origin requests are not preflighted, so the problem does not arise.
 
 The consequence is that **this works for the dev server only**. Serving the frontend from any other origin needs real CORS on the gateway — including short-circuiting `OPTIONS` ahead of authentication — or serving the built assets through the gateway itself. Neither exists yet. `jari-frontend/.env.example` documents the override variables and repeats this warning.
+
+**Constraints that will otherwise look like bugs:**
+
+- **Only three columns** (`Todo`, `In Progress`, `Done`). `KanbanService.STANDARD_COLUMNS` is exactly these three, and `moveTask` rejects anything else — a fourth column is a backend change.
+- **One assignee per issue, and no confirm-you-meant-it on reassigning.** `Task.assigneeId` is a single field; the reference app this was modelled on supports multiple. Changing that is a schema change.
+- **The assignee list is every user in the system**, not project members — project membership doesn't exist yet (Phase 3).
+- **Issue keys can collide.** The create dialog derives a key client-side from the highest existing numeric suffix (`JARI-1..5` existing → `JARI-6`), because `TaskService.createTask` never generates one itself. Two clients creating at the same moment can produce the same key, since `tasks.key` has no unique constraint — a known defect the schema baseline records on purpose. The real fix is a server-side per-project counter.
+- **No shareable link to an issue.** Detail, create, search, and settings are all overlays on one route — there is no router yet, so there's nothing to put a URL on. This is the strongest candidate for the next frontend change.
 
 ## Smoke Test
 
@@ -294,15 +300,14 @@ This is a learning project and several defects are intentionally left in place u
 
 Planned work is tracked as OpenSpec changes under `openspec/changes/` (completed phases move to `openspec/changes/archive/` and their capabilities into `openspec/specs/`).
 
-Completed: `boot-the-stack`, `collapse-identity-service`.
+Completed: `boot-the-stack`, `collapse-identity-service`, `add-kanban-browser-demo`, `add-board-issue-management`.
 
 In progress:
 
 - `add-schema-migrations` — Flyway owns each service's schema, with `ddl-auto: validate` so entity drift fails startup. Migrations apply and all services boot against them; the remaining runtime checks (restart idempotency, deliberate drift detection) are still open.
-- `add-kanban-browser-demo` — log in and see a real board in the browser. Read-only.
-- `add-integration-test-harness` — Testcontainers against real Postgres and RabbitMQ, plus the first automated identity-flow test. Deferred; until it lands, migrations are verified by booting the stack rather than by `mvn verify`.
+- `add-integration-test-harness` — Testcontainers against real Postgres and RabbitMQ, plus the first automated identity-flow test. Deferred; until it lands, migrations are verified by booting the stack rather than by `mvn verify`, and drag-and-drop's rollback-on-failure behavior is verified only for a whole-service outage, not the narrower single-request-failure case (see that change's tasks.md 5.7) — a proper isolated-failure test needs exactly the harness this phase adds.
 
-Next: drag-and-drop on the board, then Phase 3 (project membership + authorization).
+Next: a router, so an issue can have a shareable URL (currently everything is an overlay on one route, by choice — see the Frontend section); then Phase 3 (project membership + authorization), which is also what narrows the assignee list to actual project members instead of every user in the system.
 
 ## License
 
