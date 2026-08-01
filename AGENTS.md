@@ -6,31 +6,13 @@ Conventions for AI agents and human contributors working in this repository. Rea
 
 A **learning project** for distributed-systems patterns, not a product heading for production. That framing drives most of the conventions below: complexity that would be over-engineering in a startup is often the point here, and shortcuts that would be pragmatic elsewhere get recorded as known gaps rather than quietly taken.
 
-The practical consequence: **do not "simplify" a deliberate pattern away.** Per-service databases, the separate `jari-security` module, and the gateway-as-sole-ingress design are all chosen on purpose. If something looks like unnecessary indirection, check `openspec/` before removing it — the rationale is usually written down.
+The practical consequence: **do not "simplify" a deliberate pattern away.** Per-service databases, the separate `jari-security` module, and the gateway-as-sole-ingress design are all chosen on purpose. If something looks like unnecessary indirection, check `spec.md` and recent commit history before removing it — the rationale is usually written down.
 
 ## Before you change anything
 
-1. **Read the relevant spec.** `openspec/specs/<capability>/spec.md` is the authoritative contract. If your change alters observable behaviour, it changes a spec, and that belongs in an OpenSpec change (below).
-2. **Check the known gaps in [`spec.md`](spec.md).** Several "bugs" are deliberate and scheduled. Fixing one out of order is fine, but do it knowingly and in its own change — don't fold it into unrelated work.
+1. **Read [`spec.md`](spec.md).** It is the authoritative behavioural contract, API surface, and list of known gaps.
+2. **Check the known gaps in [`spec.md`](spec.md).** Several "bugs" are deliberate and scheduled. Fixing one out of order is fine, but do it knowingly and in its own commit — don't fold it into unrelated work.
 3. **Grep for callers before editing a shared function.** `jari-common` and `jari-security` are used across services; a signature change there is a multi-module change.
-
-## OpenSpec workflow
-
-Non-trivial work is tracked as a change under `openspec/changes/<change-name>/`:
-
-```
-proposal.md    # what and why
-design.md      # how, and what was rejected
-tasks.md       # checklist, kept current as work lands
-specs/         # delta specs for affected capabilities
-README.md      # short orientation
-```
-
-Completed changes move to `openspec/changes/archive/<date>-<change-name>/`, and their capability specs are merged into `openspec/specs/`.
-
-Slash commands for this workflow are available (`/opsx:propose`, `/opsx:apply`, `/opsx:archive`, `/opsx:sync`, `/opsx:explore`).
-
-**Keep `tasks.md` honest.** A task marked done that isn't is worse than an open one — the archive is the project's memory of what was actually verified.
 
 ## Verification
 
@@ -60,7 +42,7 @@ There is no frontend test script yet; CI skips it conditionally rather than fail
 
 ### Full stack
 
-`mvn`/`bun` checks do not prove the system works. For anything touching request flow, boot the stack (`docker compose up --build`) and run the **Smoke Test** in `readme.md`. There is no integration test harness yet (`add-integration-test-harness` is deferred), so the smoke test is the real end-to-end gate.
+`mvn test`/`bun` checks do not prove the system works end-to-end. `mvn verify` runs the `*IT` integration suite (real Postgres per service via Testcontainers — see readme.md's "Running the tests"), which covers the identity flow and per-service migrations. For anything touching cross-service request flow, boot the stack (`docker compose up --build`) and run the **Smoke Test** in `readme.md` too — the integration suite stubs siblings rather than exercising the whole stack together.
 
 ## Conventions
 
@@ -76,7 +58,7 @@ Do not write comments that:
 
 ### Commit messages
 
-Explain **what changed and why**. Put the reasoning here rather than in code comments — this is where it stays accurate. Reference the OpenSpec change when there is one. Do not add AI-tool attribution or co-author trailers.
+Explain **what changed and why**. Put the reasoning here rather than in code comments — this is where it stays accurate. Do not add AI-tool attribution or co-author trailers.
 
 ### Backend
 

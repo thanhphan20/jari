@@ -6,7 +6,6 @@ Built as a **learning project for distributed-systems patterns** — service dis
 
 - [`spec.md`](spec.md) — behavioural contract, API surface, deployment constraints, and known gaps. **Read the deployment constraints before running this anywhere but localhost.**
 - [`AGENTS.md`](AGENTS.md) — contributor and AI-agent conventions.
-- [`openspec/`](openspec/) — change proposals, capability specs, and the archive of completed work.
 
 ## Architecture
 
@@ -77,7 +76,7 @@ Two shared modules, each depended on only by the services that need it:
 - **`jari-common`** — shared DTOs (`BaseDto`, `ResponseDto`, `ErrorResponseDto`), common exceptions and handlers. Used by all services; a known coupling point, deliberately not eliminated.
 - **`jari-security`** — JWT handling (`JwtUtils`), gateway-injected identity header names (`IdentityHeaders`), and the filter downstream services use to require them (`IdentityHeaderFilter`).
 
-There used to be a separate Auth Service; it was merged into User Service (`openspec/changes/archive/2026-07-30-collapse-identity-service`) because the two-table split was an accident, not a real boundary, and it made a user's own id unresolvable from a token.
+There used to be a separate Auth Service; it was merged into User Service because the two-table split was an accident, not a real boundary, and it made a user's own id unresolvable from a token.
 
 ## Project Structure
 
@@ -87,9 +86,9 @@ jari/
 ├── docker-compose.yml               # Postgres, RabbitMQ, and all six services
 ├── Dockerfile                       # Multi-stage Dockerfile
 ├── postgres/init-db.sql             # Creates the four per-service databases
-├── openspec/                        # Change proposals, specs, and archive
 ├── jari-common/                     # Shared DTOs and exception handling
 ├── jari-security/                   # Shared JWT + identity-header module
+├── jari-test-support/               # Shared Testcontainers base classes (test-scoped)
 ├── jari-discovery/                  # Eureka Discovery Service
 ├── jari-gateway/                    # API Gateway
 ├── jari-user-service/               # Identity + User Service
@@ -101,7 +100,7 @@ jari/
 
 ## Technology Stack
 
-**Backend** — Java 21 · Maven (multi-module) · Spring Boot 3.2.4 · Spring Cloud 2023.0.1 · Spring Cloud Gateway (WebFlux) · Netflix Eureka · Spring Data JPA · Flyway 9.22.3 (with `ddl-auto: validate`, so entity drift fails startup) · PostgreSQL 18 · Lombok 1.18.40 · Docker Compose
+**Backend** — Java 21 · Maven (multi-module) · Spring Boot 3.2.4 · Spring Cloud 2023.0.1 · Spring Cloud Gateway (WebFlux) · Netflix Eureka · Spring Data JPA · Flyway 9.22.3 (with `ddl-auto: validate`, so entity drift fails startup) · PostgreSQL 18 · Lombok 1.18.40 · Docker Compose · Testcontainers 1.21.3 (integration tests, real Postgres per run)
 
 **Frontend** — React 19 · TypeScript 5.9 · Vite 8 · Bun · Tailwind CSS v4 · TanStack Query v5 · Axios · TipTap 3 (rich-text editor) · Phosphor Icons · ESLint 9
 
@@ -155,6 +154,31 @@ Start in dependency order: `jari-discovery` → `jari-gateway` → `jari-user-se
 docker compose down -v     # wipe Postgres volume; next `up` re-runs postgres/init-db.sql
 docker compose ps          # check for a service stuck in a restart loop
 ```
+
+### Schema migrations
+
+Each data service owns its schema through Flyway migrations under its own `src/main/resources/db/migration`, applied automatically at startup (`ddl-auto: validate`, so entity drift fails startup instead of silently altering tables).
+
+**Migrations are forward-only: never edit an applied migration, always add a new one.** Editing a file Flyway has already recorded as applied leaves the database and the migration history disagreeing about what ran — the next person to touch that service inherits an unreproducible schema. If a table needs to change, add `V2__...sql`, `V3__...sql`, and so on.
+
+To rebuild a service's schema from scratch (e.g. after a baseline mistake, or to drop accumulated local drift), `docker compose down -v` is the supported reset: it wipes the Postgres volume, and the next `up` re-applies every migration from `V1` against an empty database.
+
+### Running the tests
+
+```bash
+mvn test      # unit tests only (*Test classes) - no container runtime needed
+mvn verify    # unit + integration tests (*IT classes) - needs a container runtime
+```
+
+`*Test` classes (Surefire) are plain unit tests. `*IT` classes (Failsafe) are integration tests: each spins up a real Postgres container via Testcontainers, runs the service's own Flyway migrations against it, and exercises the service through its HTTP surface — so a broken migration or an entity/schema mismatch fails `mvn verify` the same way it would fail a real boot, not just `docker compose up`.
+
+**Requires a working container runtime** (Docker or equivalent) reachable from the JVM running the tests. Three environment issues are known to cost real time if undiagnosed:
+
+- **Postgres 18 rejects some JVM timezone identifiers.** `Asia/Saigon` fails where `Asia/Ho_Chi_Minh` succeeds, surfacing as `FATAL: invalid value for parameter "TimeZone"`. Worked around already: the parent `pom.xml` pins `-Duser.timezone=UTC` for both Surefire and Failsafe, so this shouldn't recur unless that's overridden.
+- **A second Postgres bound to port 5432** produces `password authentication failed` against what looks like the right host. Testcontainers assigns random host ports, so it's immune — this only bites hand-configured connections (see "Connecting a database client" below).
+- **Docker Desktop on Windows, newer Engine versions (observed on 29.6):** Testcontainers' Java client can negotiate down to an old Docker Engine API version that the server now rejects, surfacing as `Could not find a valid Docker environment` even though `docker ps` works fine from the CLI. Two things needed to fix it here:
+  1. `-Dapi.version=1.41` is already pinned on Failsafe's `argLine` in the parent `pom.xml` — no action needed.
+  2. `DOCKER_HOST` must point at a reachable Docker endpoint the JVM can actually negotiate with — the default Windows named pipe hits the same wall. If tests fail with the error above despite `docker ps` working: enable **Docker Desktop → Settings → General → "Expose daemon on tcp://localhost:2375 without TLS"**, restart Docker Desktop (`docker desktop restart`), and set `DOCKER_HOST=tcp://localhost:2375` before running Maven. This exposes an unauthenticated local Docker API port — acceptable for a single-developer machine, not for a shared one.
 
 ### Connecting a database client
 

@@ -1,17 +1,17 @@
 # Jari Specification
 
-Behavioural contract for Jari, plus the defects deliberately left in place. This is the summary; the authoritative per-capability specs (with full Given/When/Then scenarios) live under [`openspec/specs/`](openspec/specs/).
+Behavioural contract for Jari, plus the defects deliberately left in place. This is the summary; per-capability scenarios are exercised by the automated test suite (see readme.md's "Running the tests") rather than tracked in separate spec files.
 
 ## Accepted Capabilities
 
-Four capabilities are accepted and their specs are enforced. Each links to its full scenario list.
+Four capabilities are accepted and enforced by the test suite:
 
-| Capability | Owns | Spec |
-|---|---|---|
-| `identity` | User records, password hashing, JWT issuance, self-lookup | [`openspec/specs/identity/spec.md`](openspec/specs/identity/spec.md) |
-| `gateway-identity-propagation` | Token validation at the edge, identity-header injection, downstream trust boundary | [`openspec/specs/gateway-identity-propagation/spec.md`](openspec/specs/gateway-identity-propagation/spec.md) |
-| `board-issue-management` | Kanban drag/drop, issue CRUD, filtering, card legibility | [`openspec/specs/board-issue-management/spec.md`](openspec/specs/board-issue-management/spec.md) |
-| `local-stack-boot` | Single-command startup, health reporting, discovery, reproducibility | [`openspec/specs/local-stack-boot/spec.md`](openspec/specs/local-stack-boot/spec.md) |
+| Capability | Owns |
+|---|---|
+| `identity` | User records, password hashing, JWT issuance, self-lookup |
+| `gateway-identity-propagation` | Token validation at the edge, identity-header injection, downstream trust boundary |
+| `board-issue-management` | Kanban drag/drop, issue CRUD, filtering, card legibility |
+| `local-stack-boot` | Single-command startup, health reporting, discovery, reproducibility |
 
 ### identity
 
@@ -49,7 +49,7 @@ Four capabilities are accepted and their specs are enforced. Each links to its f
 **These are hard requirements, not suggestions.** The impersonation bypass below is demonstrated and working, not hypothetical.
 
 - **Downstream service ports MUST NOT be published** outside a single developer's machine. `docker-compose.yml` publishes `8082`-`8085` as a local-development convenience. In staging, shared, or multi-tenant environments those services **MUST** sit on a network unreachable from anywhere but the gateway.
-- **Nothing may reach a downstream service except through the gateway.** `IdentityHeaderFilter` checks only that identity headers are *present*, not that they came from the gateway. A direct call to a downstream port with a forged `X-Jari-User-Id` header succeeds and impersonates that user (verified — `collapse-identity-service` tasks.md 8.2).
+- **Nothing may reach a downstream service except through the gateway.** `IdentityHeaderFilter` checks only that identity headers are *present*, not that they came from the gateway. A direct call to a downstream port with a forged `X-Jari-User-Id` header succeeds and impersonates that user (verified directly against a running service).
 - **`JARI_SECURITY_JWT_SECRET` must be supplied by configuration.** The gateway and user-service both fail to start without it, by design.
 
 ## API Surface
@@ -99,7 +99,7 @@ All requests go through the gateway at `http://localhost:8080`. Auth routes are 
 
 ## Local Verification
 
-There is no integration test harness yet (`add-integration-test-harness` is deferred), so this checklist is the real end-to-end gate. It exercises the `local-stack-boot` and `gateway-identity-propagation` requirements above.
+`mvn verify` (see readme.md's "Running the tests") covers the identity flow and per-service migrations, but stubs siblings rather than exercising the whole stack together. This checklist remains the real cross-service end-to-end gate — it exercises the `local-stack-boot` and `gateway-identity-propagation` requirements above.
 
 1. **Every service reports healthy.** `--fail` makes the command itself fail on a non-2xx instead of printing a 503 body and exiting 0:
    ```bash
@@ -152,7 +152,7 @@ There is no integration test harness yet (`add-integration-test-harness` is defe
 
 ## Known Gaps
 
-This is a learning project; the following defects are intentionally left in place until their planned phase (tracked under [`openspec/changes/`](openspec/changes/)).
+This is a learning project; the following defects are intentionally left in place until their planned phase.
 
 ### Security
 
@@ -160,10 +160,6 @@ This is a learning project; the following defects are intentionally left in plac
 - **The trusted-header model has no cryptographic backing.** Covered under Deployment Constraints above; restated here because it is the single largest gap.
 - **The frontend keeps its token in `localStorage`**, readable by any script on the origin and therefore XSS-exposed in a way an `HttpOnly` cookie is not. It lives there so a page reload does not log you out. Acceptable on one developer's machine; must not survive contact with a shared deployment. The honest fix is a cookie set by the gateway, which makes the gateway a session participant rather than a stateless token validator — an architectural change, not a tweak.
 - **`RouterValidator` decides the auth boundary by substring match.** `path.contains(uri)` over its open-endpoints list means a path like `/api/tasks/1/swagger-ui` skips `AuthenticationFilter` entirely, and task-service's `IdentityHeaderFilter` exempts `/swagger-ui` too, so such a request clears both gates. It returns 404 today because no handler matches, so nothing leaks — but the boundary holds by accident rather than by design. Fix is prefix matching.
-
-### Spec violations
-
-- **Bad credentials return HTTP 500, not 401.** `POST /auth/token` with a wrong password or an unknown username surfaces Spring Security's `BadCredentialsException` unmapped, producing `{"message":"Bad credentials","status":500}`. This violates the `identity` spec, which requires 401 for both cases. The body is at least uniform across the two, so it does not leak whether the username exists.
 
 ### Correctness
 
@@ -184,4 +180,4 @@ This is a learning project; the following defects are intentionally left in plac
 ### Tooling
 
 - **One `bun audit` finding remains** in `brace-expansion`, reached via ESLint's own `minimatch` dependency. Every patched version changes the export shape incompatibly with what ESLint installs, so overriding it breaks linting outright (verified). Needs an upstream ESLint bump. Dev-only, never shipped.
-- **No integration test harness yet.** `add-integration-test-harness` is deferred; until it lands, migrations are verified by booting the stack rather than by `mvn verify`, and drag-and-drop's rollback-on-failure behaviour is verified only for a whole-service outage, not the narrower single-request-failure case.
+- **Drag-and-drop's rollback-on-failure behaviour is verified only for a whole-service outage**, not the narrower single-request-failure case — the integration suite doesn't yet inject a single failing request into an otherwise-healthy service.
