@@ -12,6 +12,4 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     Optional<Task> findByKey(String key);
     List<Task> findByProjectId(Long projectId);
     List<Task> findByAssigneeId(Long assigneeId);
-    List<Task> findByReporterId(Long reporterId);
-    boolean existsByKey(String key);
 }

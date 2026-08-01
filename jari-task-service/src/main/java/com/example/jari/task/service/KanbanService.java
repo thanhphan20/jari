@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 public class KanbanService {
 
     private final TaskRepository taskRepository;
-    private final TaskService taskService; // Reuse for mapping entity to dto if needed, or just use mapper
+    private final TaskService taskService;
 
     // Define standard columns for now
     private static final List<String> STANDARD_COLUMNS = Arrays.asList("TODO", "IN_PROGRESS", "DONE");
@@ -34,7 +34,7 @@ public class KanbanService {
         
         // Group tasks by status
         Map<String, List<TaskDto>> tasksByStatus = tasks.stream()
-                .map(this::mapToDto)
+                .map(taskService::mapToDto)
                 .collect(Collectors.groupingBy(task -> task.getStatus() != null ? task.getStatus() : "TODO"));
 
         List<KanbanColumnDto> columns = new ArrayList<>();
@@ -93,23 +93,4 @@ public class KanbanService {
                 .collect(Collectors.joining(" "));
     }
 
-    // Duplicated from TaskService for now to avoid circular dependency or excessive refactoring
-    // Ideally should use a shared Mapper
-    private TaskDto mapToDto(Task task) {
-        return TaskDto.builder()
-                .id(task.getId())
-                .createdAt(task.getCreatedAt())
-                .updatedAt(task.getUpdatedAt())
-                .key(task.getKey())
-                .summary(task.getSummary())
-                .description(task.getDescription())
-                .order(task.getOrder())
-                .priority(task.getPriority())
-                .type(task.getType())
-                .status(task.getStatus())
-                .projectId(task.getProjectId())
-                .reporterId(task.getReporterId())
-                .assigneeId(task.getAssigneeId())
-                .build();
-    }
 }
