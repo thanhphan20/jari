@@ -18,11 +18,8 @@ import type { Project } from './types/project';
 import type { KanbanBoard as KanbanBoardType, Task } from './types/kanban';
 import { EMPTY_FILTERS, isActive, type Filters } from './types/filters';
 
-// Applied client-side over the already-fetched board: the board arrives as
-// one payload of every issue in the project, so filtering it server-side
-// would mean more requests for less responsiveness, and there is no endpoint
-// for it anyway. Stops being the right call once a project has enough issues
-// that fetching them all is itself the problem - not a concern at demo scale.
+// Client-side: the board arrives as one payload and there is no filter endpoint.
+// Revisit if a project ever holds enough issues that fetching them all is the problem.
 function applyFilters(board: KanbanBoardType, filters: Filters, currentUserId?: number): KanbanBoardType {
   const text = filters.text.trim().toLowerCase();
   return {
@@ -46,13 +43,11 @@ function Board({ projectId }: { projectId: number }) {
   const { data, isLoading, isError, error } = useQuery({
     queryKey,
     queryFn: () => getKanbanBoard(projectId),
-    // A 401 is handled globally by signing the user out; retrying it would
-    // just burn requests before that happens.
+    // A 401 signs the user out globally; retrying just burns requests first.
     retry: false,
   });
 
-  // The assignee list is every user in the system - project membership does
-  // not exist until Phase 3, so there is no smaller set to draw from yet.
+  // Every user in the system - project membership does not exist yet.
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: listUsers, retry: false });
   const usersById = useMemo(() => new Map(users?.map((u) => [u.id, u])), [users]);
   const { data: currentUser } = useQuery({ queryKey: ['me'], queryFn: getCurrentUser, retry: false });
@@ -61,11 +56,8 @@ function Board({ projectId }: { projectId: number }) {
   const [moveError, setMoveError] = useState(false);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
 
-  // Optimistic: the card moves in the cache the instant the drop happens,
-  // rather than waiting for the round trip - a drag that visibly hangs before
-  // settling reads as broken. onMutate snapshots the board so onError can put
-  // it back exactly as it was; onSettled always refetches afterward, so the
-  // client never has the last word over the server.
+  // Optimistic: onMutate snapshots the board so onError can restore it, and
+  // onSettled refetches so the client never has the last word over the server.
   const move = useMutation({
     mutationFn: (args: MoveArgs) => moveTask(args.taskId, args.targetStatus, args.targetIndex),
     onMutate: async (args: MoveArgs) => {
@@ -127,14 +119,8 @@ function Board({ projectId }: { projectId: number }) {
         usersById={usersById}
         onSelectTask={setSelectedTask}
         onMove={(args) => move.mutate(args)}
-        // A drop's target index is computed against whatever board is
-        // rendered - which, while any filter is active, is filteredBoard, a
-        // subset. The mutation always applies that index to the full
-        // unfiltered cache, so a filtered index has no correct translation
-        // back (hidden siblings mean the "same visual position" maps to a
-        // different real position). Disabling drag is simpler and more
-        // honest than a translation that would still be wrong whenever a
-        // hidden task sits between the source and target slots.
+        // Drop indices are computed against the rendered (filtered) board but
+        // applied to the full one, so hidden siblings make them wrong.
         dragDisabled={isActive(filters)}
       />
       {selectedTask && <IssueDetail task={selectedTask} onClose={() => setSelectedTask(null)} />}
@@ -168,8 +154,7 @@ function ProjectShell({ onSignedOut }: { onSignedOut: () => void }) {
     queryFn: listProjects,
     retry: false,
   });
-  // Shares the ['me'] cache entry with Board's own query below - React Query
-  // dedupes by key, so this doesn't double the request.
+  // Same ['me'] key as Board below; React Query dedupes, so this is one request.
   const { data: currentUser } = useQuery({ queryKey: ['me'], queryFn: getCurrentUser, retry: false });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -179,11 +164,8 @@ function ProjectShell({ onSignedOut }: { onSignedOut: () => void }) {
     return <AppShellSkeleton />;
   }
 
-  // Checked before the empty-project branch below, not after: without this,
-  // a real failure (network down, 500, an expired-but-not-yet-401 token)
-  // left `projects` undefined, which `projects?.[0]` turns into "no
-  // project", which rendered the first-run "create your first project"
-  // screen - misrepresenting an error as an empty database.
+  // Must precede the empty-project branch: otherwise a fetch failure leaves
+  // `projects` undefined and renders "create your first project" instead.
   if (isError) {
     return (
       <div className="p-6 text-sm text-red-600">
@@ -192,9 +174,7 @@ function ProjectShell({ onSignedOut }: { onSignedOut: () => void }) {
     );
   }
 
-  // There are zero rows in the projects table on a fresh clone - the board
-  // only ever "worked" because KanbanService never checks the project
-  // exists. This is the first-run path instead of a hardcoded project id.
+  // A fresh database has no projects; this is the first-run path.
   const project: Project | undefined = projects?.[0];
   if (!project) {
     return <CreateProjectDialog onCreated={() => refetch()} />;
@@ -236,23 +216,14 @@ function App() {
   const [authenticated, setAuthenticated] = useState(() => getToken() !== null);
   const queryClient = useQueryClient();
 
-  // Clears every cached query - not just the token - on the way out. Without
-  // this, React Query's stale-while-revalidate behavior would briefly render
-  // the previous session's board/tasks/comments from cache the instant a
-  // different user logs in on the same tab, before the fresh fetch resolves.
-  // Called from both sign-out paths: automatic (401, below) and manual
-  // (ProfileMenu's Sign out, via onSignedOut).
+  // clear() the cache too, or the next user briefly sees the previous one's data.
   const signOut = () => {
     queryClient.clear();
     setAuthenticated(false);
   };
 
-  // The response interceptor clears the token on a 401; this puts the UI back
-  // on the login screen rather than leaving a blank or half-rendered page.
-  // signOut is intentionally omitted from the deps: it's recreated every
-  // render, but only closes over queryClient (stable for the component's
-  // lifetime) and setAuthenticated (stable by React's own guarantee), so a
-  // stale closure here can't reference stale state.
+  // signOut is omitted from the deps deliberately: it only closes over stable
+  // values, so it cannot go stale.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => onUnauthorized(signOut), []);
 

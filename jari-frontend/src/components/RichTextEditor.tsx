@@ -35,10 +35,8 @@ export const RichTextEditor: React.FC<Props> = ({ content, onBlur }) => {
     onBlur: ({ editor }) => onBlur(editor.getHTML()),
   });
 
-  // TipTap owns its own internal document state once mounted; it does not
-  // resync from the `content` prop on its own. Without this, closing and
-  // reopening the modal on a different issue would keep showing the
-  // previous issue's description until a full remount.
+  // TipTap does not resync from the `content` prop on its own; without this,
+  // reopening the modal on another issue shows the previous description.
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
       editor.commands.setContent(content, { emitUpdate: false });

@@ -17,19 +17,11 @@ interface Props {
   usersById?: Map<number, User>;
   onSelectTask?: (task: Task) => void;
   onMove?: (args: MoveArgs) => void;
-  // Disables drag entirely rather than translating indices between a
-  // filtered view and the canonical (unfiltered) board a filter can hide
-  // siblings from - see App.tsx's applyFilters. Reordering against a
-  // partial view doesn't have an unambiguous meaning anyway.
   dragDisabled?: boolean;
 }
 
-// Computes the insertion index from pointer position by comparing against
-// each existing card's vertical midpoint - the drop lands before the first
-// card whose midpoint is below the pointer, or at the end otherwise. This
-// index is relative to the rendered list, which still includes the dragged
-// card itself (dimmed, not removed) - see the same-column adjustment in
-// onDrop below for why that matters.
+// Index is relative to the rendered list, which still contains the dragged card
+// (dimmed, not removed) - see the same-column adjustment in onDrop.
 function dropIndexFor(container: HTMLElement, clientY: number): number {
   const cards = Array.from(container.querySelectorAll<HTMLElement>('[data-card]'));
   for (let i = 0; i < cards.length; i++) {
@@ -65,10 +57,7 @@ export function BoardSkeleton() {
 }
 
 export const KanbanBoard: React.FC<Props> = ({ board, isLoading, usersById, onSelectTask, onMove, dragDisabled }) => {
-  // Tracks where the drag started, not just which task - the column and
-  // index at drag-start, so onDrop can correct for the array shift that
-  // removing the dragged card causes when reordering within that same
-  // column (see the comment at the adjustment below).
+  // Column and index at drag-start, needed for the same-column shift in onDrop.
   const [dragSource, setDragSource] = useState<{ taskId: number; columnId: string; index: number } | null>(null);
   const [dragOver, setDragOver] = useState<{ columnId: string; index: number } | null>(null);
 
@@ -104,17 +93,9 @@ export const KanbanBoard: React.FC<Props> = ({ board, isLoading, usersById, onSe
             e.preventDefault();
             if (dragSource !== null && dragOver?.columnId === column.id) {
               let targetIndex = dragOver.index;
-              // Reordering within the same column: dropIndexFor's result is
-              // computed against the rendered list, which still includes the
-              // dragged card at its original slot. Removing it (which the
-              // move always does, before reinserting) shifts every later
-              // index back by one - inserting at the raw computed index would
-              // then land one slot too late. Example: [A,B,C], drag A to
-              // "before C" computes index 2; without this adjustment,
-              // removing A first gives [B,C] and inserting at 2 appends
-              // (-> [B,C,A]) instead of landing between B and C (-> [B,A,C]).
-              // Moving to a different column needs no adjustment, since
-              // removing from column X doesn't shift column Y's indices.
+              // Same column: removing the card before reinserting shifts later
+              // indices back one, so the raw index would land a slot too late.
+              // [A,B,C] dragging A before C computes 2, but needs 1.
               if (dragSource.columnId === column.id && dragSource.index < targetIndex) {
                 targetIndex -= 1;
               }

@@ -3,11 +3,8 @@ import { NotificationBell } from './NotificationBell';
 import { ProfileMenu } from './ProfileMenu';
 import type { User } from '../types/user';
 
-// A slim icon rail, distinct from the collapsible project Sidebar. Kept to
-// what actually does something today - the logo, create-issue shortcut, a
-// real notification bell, and the signed-in user's own profile/sign-out -
-// rather than a row of icons pointing at destinations (releases, reports,
-// backlog) that don't exist yet in this backend.
+// Icon rail, distinct from the collapsible project Sidebar. Only holds actions
+// that work today - no icons pointing at routes this backend lacks.
 interface Props {
   onCreateIssue: () => void;
   currentUser?: User;

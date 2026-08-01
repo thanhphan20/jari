@@ -1,9 +1,6 @@
 import type { User } from '../types/user';
 
-// A handful of distinct, readable-on-white colours. Picked by user id modulo
-// length, not randomly and not by array index in a filtered list, so the
-// same person is always the same colour - what makes an avatar scannable
-// across cards and across reloads.
+// Indexed by user id, not array position, so a person keeps one colour everywhere.
 const COLORS = ['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ea580c', '#0891b2', '#c026d3', '#65a30d'];
 
 function initials(user: Pick<User, 'firstName' | 'lastName' | 'username'>): string {

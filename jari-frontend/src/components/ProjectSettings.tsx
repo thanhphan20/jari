@@ -15,8 +15,7 @@ export const ProjectSettings: React.FC<Props> = ({ project, onClose }) => {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    // updateProject overwrites the whole record - spread the current project
-    // so fields this form does not expose (leadUserId, active, ...) survive.
+    // Spread so fields this form omits (leadUserId, active) survive the overwrite.
     mutationFn: () => updateProject(project.id, { ...project, name, description }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });

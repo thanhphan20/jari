@@ -11,14 +11,8 @@ interface Props {
   onClose: () => void;
 }
 
-// TaskService.createTask never generates a key - it stores whatever key.ts
-// sends. tasks.key also has no unique constraint (V1__baseline.sql records
-// that deliberately as a known defect for a later phase). This derivation is
-// therefore genuinely racy: two clients creating an issue for the same
-// project at the same moment can compute the same next suffix and collide.
-// Accepted rather than worked around client-side - the real fix is a
-// server-side per-project counter, and faking uniqueness here would hide the
-// defect instead of leaving it visible for that later change to find.
+// Racy by acceptance: the server neither generates keys nor enforces uniqueness,
+// so two simultaneous creates can collide. Real fix is a server-side counter.
 function nextKey(projectKey: string, existingKeys: string[]): string {
   const prefix = `${projectKey}-`;
   const maxSuffix = existingKeys

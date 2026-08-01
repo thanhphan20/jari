@@ -1,6 +1,3 @@
-// Task.priority: 1=Lowest, 2=Low, 3=Medium, 4=High, 5=Highest (see Task.java).
-// Arrow direction + count encodes magnitude, colour encodes urgency - the two
-// together are readable at card size without a label.
 import { PRIORITY_META } from '../../types/kanban';
 
 function Arrows({ priority }: { priority: number }) {
