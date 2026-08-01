@@ -66,13 +66,29 @@ class JwtUtilsTest {
     }
 
     @Test
-    void aTamperedTokenIsRejected() {
-        String token = jwtUtils.generateToken(1L, "ada", List.of("USER"));
-        // Flip the last character of the signature segment.
-        String tampered = token.substring(0, token.length() - 1)
-                + (token.endsWith("A") ? "B" : "A");
+    void editedClaimsWithABorrowedSignatureAreRejected() {
+        // Splice one token's header+payload onto another's signature. Both are
+        // individually valid, so this isolates "the signature does not cover these
+        // claims" - which is the forgery that matters.
+        //
+        // Deliberately not flipping a character in the signature instead: a 32-byte
+        // HS256 signature base64url-encodes to 43 characters whose last one carries
+        // only 4 meaningful bits, so four different final characters decode to the
+        // same bytes and the edit is sometimes a no-op.
+        String[] mine = jwtUtils.generateToken(1L, "ada", List.of("USER")).split("\\.");
+        String[] other = jwtUtils.generateToken(2L, "grace", List.of("USER")).split("\\.");
+        String spliced = mine[0] + "." + mine[1] + "." + other[2];
 
-        assertThatThrownBy(() -> jwtUtils.extractUsername(tampered))
+        assertThatThrownBy(() -> jwtUtils.extractUsername(spliced))
+                .isInstanceOf(JwtException.class);
+    }
+
+    @Test
+    void aTruncatedSignatureIsRejected() {
+        String token = jwtUtils.generateToken(1L, "ada", List.of("USER"));
+        String truncated = token.substring(0, token.lastIndexOf('.') + 1);
+
+        assertThatThrownBy(() -> jwtUtils.extractUsername(truncated))
                 .isInstanceOf(JwtException.class);
     }
 
