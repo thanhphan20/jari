@@ -26,11 +26,13 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <lombok.version>1.18.40</lombok.version>
         <flyway.version>9.22.3</flyway.version>
+        <testcontainers.version>1.21.3</testcontainers.version>
     </properties>
 
     <modules>
         <module>jari-common</module>
         <module>jari-security</module>
+        <module>jari-test-support</module>
         <module>jari-discovery</module>
         <module>jari-gateway</module>
         <module>jari-user-service</module>
@@ -69,6 +71,13 @@
                 <artifactId>flyway-core</artifactId>
                 <version>${flyway.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -103,8 +112,55 @@
                         </excludes>
                     </configuration>
                 </plugin>
+                <!-- *IT classes are integration tests (Failsafe, `mvn verify`, need a
+                     container runtime); everything else is a unit test (Surefire,
+                     `mvn test`, no container runtime required). Timezone pinned to
+                     UTC on both so the suite's result doesn't depend on the
+                     developer's machine locale/timezone (Postgres 18 also rejects
+                     some legacy zone aliases the JVM default can carry, e.g.
+                     Asia/Saigon). -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <excludes>
+                            <exclude>**/*IT.java</exclude>
+                        </excludes>
+                        <argLine>-Duser.timezone=UTC</argLine>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
+        <!-- Failsafe isn't bound to the default jar lifecycle the way Surefire
+             is, so it must be declared here (inherited by every child module)
+             rather than left in pluginManagement alone, or *IT classes would
+             never run. -->
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>**/*IT.java</include>
+                    </includes>
+                    <!-- api.version pins docker-java's negotiated Docker Engine API version.
+                         Without it, docker-java negotiates down to an old version (~1.24-1.32)
+                         that newer Docker Engines (29.x, MinAPIVersion 1.40) reject with a
+                         malformed empty-body 400 - surfacing as "Could not find a valid Docker
+                         environment" with no hint that the real cause is API version, not a
+                         missing runtime. 1.41 is old enough to be supported everywhere. -->
+                    <argLine>-Duser.timezone=UTC -Dapi.version=1.41</argLine>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
 </project>
