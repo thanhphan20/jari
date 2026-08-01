@@ -6,7 +6,6 @@ import com.example.jari.task.dto.MoveTaskDto;
 import com.example.jari.task.service.KanbanService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,24 +18,12 @@ public class KanbanController {
 
     @GetMapping("/{projectId}")
     public ResponseEntity<ResponseDto<KanbanBoardDto>> getBoard(@PathVariable Long projectId) {
-        KanbanBoardDto board = kanbanService.getBoardByProjectId(projectId);
-        ResponseDto<KanbanBoardDto> response = ResponseDto.<KanbanBoardDto>builder()
-                .success(true)
-                .message("Kanban board retrieved successfully")
-                .data(board)
-                .status(HttpStatus.OK.value())
-                .build();
-        return ResponseEntity.ok(response);
+        return ResponseDto.ok(kanbanService.getBoardByProjectId(projectId), "Kanban board retrieved successfully");
     }
 
     @PostMapping("/move")
     public ResponseEntity<ResponseDto<Void>> moveTask(@Valid @RequestBody MoveTaskDto moveTaskDto) {
         kanbanService.moveTask(moveTaskDto);
-        ResponseDto<Void> response = ResponseDto.<Void>builder()
-                .success(true)
-                .message("Task moved successfully")
-                .status(HttpStatus.OK.value())
-                .build();
-        return ResponseEntity.ok(response);
+        return ResponseDto.ok("Task moved successfully");
     }
 }
