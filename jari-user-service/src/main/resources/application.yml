@@ -21,6 +21,13 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
+jari:
+  security:
+    # Overrides the default open-path list from IdentityFilterAutoConfiguration to
+    # add /auth/. Registration, token issuance, and validation all run before an
+    # identity exists, so they cannot require the gateway's identity headers.
+    open-paths: /auth/,/actuator/health,/v3/api-docs,/swagger-ui
+
 eureka:
   client:
     service-url:
