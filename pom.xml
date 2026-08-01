@@ -39,6 +39,17 @@
         <module>jari-notification-service</module>
     </modules>
 
+    <!-- Every module gets the test toolchain (JUnit 5, Mockito, AssertJ, Spring
+         test support) rather than each pom repeating it. Version comes from
+         spring-boot-starter-parent. -->
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
