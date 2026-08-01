@@ -29,7 +29,10 @@ public class Notification {
     private String message;
 
     private String type; // INFO, WARNING, ERROR, SUCCESS
+
+    @Builder.Default
     private boolean read = false;
+
     private String link;
 
     @Column(nullable = false, updatable = false)

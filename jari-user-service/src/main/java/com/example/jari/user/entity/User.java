@@ -33,6 +33,8 @@ public class User {
     private String username;
 
     private String avatarUrl;
+
+    @Builder.Default
     private boolean active = true;
 
     @Column(nullable = false, updatable = false)

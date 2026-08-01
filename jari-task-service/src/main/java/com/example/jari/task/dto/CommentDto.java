@@ -6,12 +6,14 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Data
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(callSuper = true)
 public class CommentDto extends BaseDto {
     private Long taskId;
     private Long authorId;

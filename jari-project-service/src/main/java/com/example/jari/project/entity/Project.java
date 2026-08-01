@@ -28,6 +28,8 @@ public class Project {
     private String description;
     private String avatarUrl;
     private Long leadUserId;
+
+    @Builder.Default
     private boolean active = true;
 
     @Column(nullable = false, updatable = false)
