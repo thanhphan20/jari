@@ -1,6 +1,3 @@
-// Task.type: 1=Task, 2=Bug, 3=Story, 4=Epic (see Task.java).
-// Each is a coloured rounded square with a distinct glyph, so type is legible
-// on a card without opening it - the whole point per design.md.
 import { TYPE_META } from '../../types/kanban';
 
 function Glyph({ type }: { type: number }) {

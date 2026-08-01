@@ -22,8 +22,7 @@ export const Login: React.FC<Props> = ({ onAuthenticated }) => {
       setToken(token);
       onAuthenticated();
     } catch {
-      // Deliberately not distinguishing "no such user" from "wrong password":
-      // the identity service does not tell us, and it should not.
+      // Deliberately not distinguishing "no such user" from "wrong password".
       setError('Login failed. Check your username and password.');
     } finally {
       setSubmitting(false);

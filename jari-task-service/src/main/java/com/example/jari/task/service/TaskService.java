@@ -95,7 +95,9 @@ public class TaskService {
         taskRepository.delete(task);
     }
 
-    private TaskDto mapToDto(Task task) {
+    // Package-private rather than private: KanbanService maps the same entity for
+    // its board payload and used to carry a byte-identical copy of this method.
+    TaskDto mapToDto(Task task) {
         return TaskDto.builder()
                 .id(task.getId())
                 .key(task.getKey())

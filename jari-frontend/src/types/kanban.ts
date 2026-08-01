@@ -47,9 +47,7 @@ export const PRIORITY_META: Record<number, EnumMeta> = {
 export const TYPE_IDS = Object.keys(TYPE_META).map(Number);
 export const PRIORITY_IDS = Object.keys(PRIORITY_META).map(Number);
 
-// KanbanService.STANDARD_COLUMNS is exactly these three; moveTask throws on
-// anything else, and PUT /tasks/{id} has no such guard of its own - sending
-// a status outside this list would desync the task from every board column.
+// Must match KanbanService.STANDARD_COLUMNS - anything else desyncs the board.
 export const STATUSES = ['TODO', 'IN_PROGRESS', 'DONE'];
 export const STATUS_PILL: Record<string, string> = {
   TODO: 'bg-gray-200 text-gray-700',

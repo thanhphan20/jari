@@ -41,17 +41,11 @@ public class JwtUtils {
         return userId == null ? null : Long.valueOf(userId.toString());
     }
 
-    @SuppressWarnings("unchecked")
-    public List<String> extractRoles(String token) {
-        Object roles = extractAllClaims(token).get("roles");
-        return roles == null ? List.of() : (List<String>) roles;
-    }
-
-    public Date extractExpiration(String token) {
+    private Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+    private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         return claimsResolver.apply(extractAllClaims(token));
     }
 

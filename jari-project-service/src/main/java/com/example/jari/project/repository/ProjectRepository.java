@@ -9,5 +9,4 @@ import java.util.Optional;
 @Repository
 public interface ProjectRepository extends JpaRepository<Project, Long> {
     Optional<Project> findByKey(String key);
-    boolean existsByKey(String key);
 }

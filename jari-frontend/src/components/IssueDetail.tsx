@@ -18,13 +18,8 @@ interface Props {
 }
 
 export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => {
-  // Held in local state rather than read from the prop directly. The parent
-  // only refetches the board list on a successful mutation; it does not (and
-  // has no way to) hand this panel a fresh Task back. Without local state, a
-  // select's `value` would keep pointing at the prop from the moment the
-  // panel opened, so a change would render, then immediately appear to
-  // revert on the next parent render - the click would look like it didn't
-  // register even though the request succeeded.
+  // Local state, not the prop: the parent never hands this panel a fresh Task,
+  // so edits would appear to revert on its next render.
   const [task, setTask] = useState(initialTask);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -35,9 +30,7 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
 
   const invalidateBoard = () => queryClient.invalidateQueries({ queryKey: ['kanban', task.projectId] });
 
-  // Every field change goes through the same full-record PUT, since
-  // TaskService.updateTask overwrites rather than merges (see api/tasks.ts).
-  // Spreading the current local `task` keeps every other field intact.
+  // Spread the whole task: the PUT overwrites rather than merges (see api/tasks.ts).
   const update = useMutation({
     mutationFn: (patch: Partial<Task>) => updateTask(task.id, { ...task, ...patch }),
     onSuccess: (updated) => {
@@ -55,23 +48,8 @@ export const IssueDetail: React.FC<Props> = ({ task: initialTask, onClose }) => 
     },
   });
 
-  // Summary and description save on blur, which normally fires before a
-  // click on another element registers. Relying on that ordering for the
-  // close button specifically is the wrong tradeoff: "edit a field, then
-  // immediately click Close" is an ordinary thing to do, and if a browser,
-  // extension, or synthetic input event ever delivers blur and click out of
-  // the order this assumes, the edit is lost silently with no error shown.
-  // Flushing explicitly before closing removes the assumption entirely.
-  //
-  // One combined save, not two independent ones, and awaited before closing:
-  // `task` already holds both fields merged locally, so a single PUT carries
-  // everything that changed. Firing two separate mutate() calls here was
-  // redundant rather than actually racy - both would send the same complete
-  // snapshot - but the real bug was that onClose() ran unconditionally
-  // regardless of outcome, so a failed save unmounted the panel (and its
-  // error message) with no feedback at all. Awaiting the save and only
-  // closing on success fixes that; a failure now keeps the panel open with
-  // the error visible instead of silently discarding the edit.
+  // Flush pending summary/description edits before closing rather than trusting
+  // blur to beat the click, and only close if the save succeeded.
   const handleClose = async () => {
     const dirty = task.summary !== initialTask.summary || task.description !== initialTask.description;
     if (!dirty) {
