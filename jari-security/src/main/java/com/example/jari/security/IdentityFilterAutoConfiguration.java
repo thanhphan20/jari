@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -30,15 +31,24 @@ public class IdentityFilterAutoConfiguration {
      * Paths exempt from the identity requirement, matched as prefixes. Health checks
      * and Swagger are open everywhere; user-service adds {@code /auth/} for the
      * register/token/validate endpoints that run before an identity exists.
+     *
+     * Bound as a String and split here rather than injected as a {@code List<String>}:
+     * the list form only works where Spring Boot's ApplicationConversionService is
+     * installed, so it silently collapses to one joined element in a plain context.
+     * Splitting explicitly makes the value the same everywhere.
      */
     @Value("${jari.security.open-paths:/actuator/health,/v3/api-docs,/swagger-ui}")
-    private List<String> openPaths;
+    private String openPaths;
 
     @Bean
     @ConditionalOnMissingBean(name = "identityHeaderFilter")
     public FilterRegistrationBean<IdentityHeaderFilter> identityHeaderFilter() {
+        List<String> prefixes = Arrays.stream(openPaths.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
         FilterRegistrationBean<IdentityHeaderFilter> registration =
-                new FilterRegistrationBean<>(new IdentityHeaderFilter(openPaths));
+                new FilterRegistrationBean<>(new IdentityHeaderFilter(prefixes));
         registration.addUrlPatterns("/*");
         return registration;
     }

@@ -19,6 +19,11 @@ env:
 jobs:
   # -am builds each service's jari-common/jari-security deps from source in
   # the same invocation - no shared pre-install job to keep in sync.
+  #
+  # jari-common and jari-security are listed even though -am already builds them
+  # for every dependent: without their own entries their tests only ever run
+  # inside another service's job, so a failure there is reported against a
+  # service that is not at fault.
   backend-service:
     name: Backend / ${{ matrix.service }}
     runs-on: ubuntu-latest
@@ -26,6 +31,8 @@ jobs:
       fail-fast: false
       matrix:
         service:
+          - jari-common
+          - jari-security
           - jari-discovery
           - jari-gateway
           - jari-user-service
@@ -40,7 +47,17 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: maven
       - run: ./mvnw -B -pl ${{ matrix.service }} -am compile
+      # Surefire exits non-zero on any failure, so this step is the test gate.
       - run: ./mvnw -B -pl ${{ matrix.service }} -am test
+      # Surefire's reports name the failing assertion; the step log alone often
+      # truncates it.
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-${{ matrix.service }}
+          path: '**/target/surefire-reports/*.txt'
+          if-no-files-found: ignore
       - run: ./mvnw -B -pl ${{ matrix.service }} -am install
 
   frontend:
